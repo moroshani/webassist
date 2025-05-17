@@ -1,29 +1,77 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
-    <title>Sites List</title>
+  <meta charset="UTF-8">
+  <title>Sites List</title>
 </head>
 <body>
-    <h1>Stored Links</h1>
-    {% if links %}
-        <table border="1" cellpadding="5" cellspacing="0">
-            <thead>
-                <tr>
-                    <th>URL</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for link in links %}
-                <tr>
-                    <td><a href="{{ link.url }}" target="_blank">{{ link.url }}</a></td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    {% else %}
-        <p>No links stored yet.</p>
+  <h1>Stored Links</h1>
+
+  <!-- Search form -->
+  <form method="get" action="{% url 'sites' %}">
+    <input
+      type="text"
+      name="q"
+      placeholder="Search URLs"
+      value="{{ query }}"
+    >
+    <button type="submit">Search</button>
+    {% if sort %}
+      <input type="hidden" name="sort" value="{{ sort }}">
     {% endif %}
-    <p><a href="{% url 'home' %}">Home</a></p>
+  </form>
+
+  <!-- Sorting links -->
+  <p>
+    Sort:
+    {% if sort == 'url' %}
+      A → Z |
+      <a href="?{% if query %}q={{ query }}&{% endif %}sort=-url">Z → A</a>
+    {% elif sort == '-url' %}
+      <a href="?{% if query %}q={{ query }}&{% endif %}sort=url">A → Z</a> |
+      Z → A
+    {% else %}
+      <a href="?{% if query %}q={{ query }}&{% endif %}sort=url">A → Z</a> |
+      <a href="?{% if query %}q={{ query }}&{% endif %}sort=-url">Z → A</a>
+    {% endif %}
+  </p>
+
+  {% if page_obj.object_list %}
+    <table border="1" cellpadding="5" cellspacing="0">
+      <thead>
+        <tr><th>URL</th></tr>
+      </thead>
+      <tbody>
+        {% for link in page_obj.object_list %}
+          <tr>
+            <td>
+              <a href="{{ link.url }}" target="_blank">{{ link.url }}</a>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <!-- Pagination controls -->
+    <div>
+      {% if page_obj.has_previous %}
+        <a
+          href="?{% if query %}q={{ query }}&{% endif %}{% if sort %}sort={{ sort }}&{% endif %}page={{ page_obj.previous_page_number }}"
+        >Previous</a>
+      {% endif %}
+
+      Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+
+      {% if page_obj.has_next %}
+        <a
+          href="?{% if query %}q={{ query }}&{% endif %}{% if sort %}sort={{ sort }}&{% endif %}page={{ page_obj.next_page_number }}"
+        >Next</a>
+      {% endif %}
+    </div>
+  {% else %}
+    <p>No links found.</p>
+  {% endif %}
+
+  <p><a href="{% url 'home' %}">Home</a></p>
 </body>
 </html>
