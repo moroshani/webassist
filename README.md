@@ -1,15 +1,16 @@
 # WebAssist
 
-WebAssist is a Django-based web application for managing and analyzing web links using Google's PageSpeed Insights API. It helps you monitor and improve your website's performance by providing detailed insights and recommendations.
+WebAssist is a Django-based dashboard for tracking, analyzing, and improving the performance, accessibility, and SEO of your web pages using Google's PageSpeed Insights API. It helps you monitor and optimize your sites with detailed, actionable reports and a modern, user-friendly interface.
 
 ## Features
 
-- **Link Management**: Add, edit, and manage web links with titles, URLs, and descriptions
-- **Performance Analysis**: Get comprehensive PageSpeed Insights reports for both mobile and desktop
-- **Visual Reports**: View performance metrics with interactive charts and visualizations
-- **Historical Data**: Track performance changes over time with stored reports
-- **Search & Filter**: Easily find and filter links and reports
-- **Real-time Updates**: AJAX-powered refresh functionality
+- **Page Management**: Add, organize, and manage web pages you want to monitor
+- **PageSpeed Insights Integration**: Run audits for mobile and desktop, view all key metrics and scores
+- **Performance, Accessibility, Best Practices, SEO**: See scores and details for all Lighthouse categories
+- **Historical Tracking**: Keep a history of all PSI runs for each page
+- **Search & Filter**: Easily find and filter pages and reports
+- **Export**: Download your PSI data as CSV or JSON
+- **Modern UI**: Responsive, Bootstrap-based interface
 
 ## Technologies Used
 
@@ -61,8 +62,8 @@ python manage.py runserver
 
 ## Usage
 
-1. Access the admin interface at `/admin` to manage links
-2. View all links at `/sites/`
+1. Access the admin interface at `/admin` to manage pages
+2. View all pages at `/pages/`
 3. Use the "Fetch PSI" button to get performance reports
 4. View detailed reports and metrics in the reports section
 
@@ -71,17 +72,16 @@ python manage.py runserver
 ```
 webassist/
 ├── links/                    # Main application
-│   ├── models.py            # Database models
-│   ├── views.py             # View functions
-│   ├── services.py          # PSI API integration
-│   └── urls.py              # URL routing
-├── templates/               # HTML templates
-│   ├── base.html           # Base template
-│   └── links/              # App-specific templates
-├── static/                 # Static files
-│   ├── css/               # Stylesheets
-│   └── js/                # JavaScript files
-└── manage.py              # Django management script
+│   ├── models.py             # Page, PSIReport, metrics, and audit models
+│   ├── services.py           # PSI API integration and data extraction
+│   ├── views.py              # All views for dashboard and reports
+│   ├── templates/links/      # All templates (home, page list, reports, partials)
+│   └── ...
+├── static/                   # Static files (CSS, JS)
+├── templates/                # Base templates
+├── webassist/                # Project settings and URLs
+├── manage.py
+└── requirements.txt
 ```
 
 ## Contributing
