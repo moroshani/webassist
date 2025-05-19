@@ -1,0 +1,21 @@
+/* Custom styles for WebAssist */
+
+.navbar {
+    margin-bottom: 2rem;
+}
+
+.table-responsive {
+    margin-top: 1rem;
+}
+
+.card {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.btn-primary {
+    margin-right: 0.5rem;
+}
+
+.alert {
+    margin-top: 1rem;
+} 
