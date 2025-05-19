@@ -8,6 +8,7 @@
                     <th>Description</th>
                     <th>Created</th>
                     <th>Updated</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -18,6 +19,16 @@
                     <td>{{ link.description }}</td>
                     <td>{{ link.created_at|date:"M d, Y" }}</td>
                     <td>{{ link.updated_at|date:"M d, Y" }}</td>
+                    <td>
+                        <div class="btn-group" role="group">
+                            <button class="btn btn-primary btn-sm fetch-psi" data-link-id="{{ link.id }}">
+                                <i class="bi bi-speedometer2"></i> Fetch PSI
+                            </button>
+                            <a href="{% url 'psi_reports_list' link.id %}" class="btn btn-info btn-sm">
+                                <i class="bi bi-file-earmark-text"></i> Reports
+                            </a>
+                        </div>
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>

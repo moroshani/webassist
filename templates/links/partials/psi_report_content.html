@@ -1,0 +1,106 @@
+<div class="row">
+    <!-- Category Scores -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Category Scores</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="categoryScoresChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Performance Metrics -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Performance Metrics</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    {% for metric in report_data.audits %}
+                        {% if metric.score is not None %}
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-1">{{ metric.title }}</h6>
+                                    <span class="badge {% if metric.score >= 0.9 %}bg-success{% elif metric.score >= 0.5 %}bg-warning{% else %}bg-danger{% endif %}">
+                                        {{ metric.score|floatformat:2 }}
+                                    </span>
+                                </div>
+                                {% if metric.description %}
+                                    <p class="mb-1 small text-muted">{{ metric.description }}</p>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Opportunities -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Opportunities for Improvement</h5>
+    </div>
+    <div class="card-body">
+        <div class="list-group">
+            {% for audit in report_data.audits %}
+                {% if audit.score is not None and audit.score < 1 %}
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h6 class="mb-1">{{ audit.title }}</h6>
+                            <span class="badge {% if audit.score >= 0.9 %}bg-success{% elif audit.score >= 0.5 %}bg-warning{% else %}bg-danger{% endif %}">
+                                {{ audit.score|floatformat:2 }}
+                            </span>
+                        </div>
+                        {% if audit.description %}
+                            <p class="mb-1">{{ audit.description }}</p>
+                        {% endif %}
+                        {% if audit.details and audit.details.items %}
+                            <div class="mt-2">
+                                <h6 class="mb-2">Details:</h6>
+                                <ul class="list-unstyled">
+                                    {% for key, value in audit.details.items %}
+                                        <li><strong>{{ key }}:</strong> {{ value }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Diagnostics -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Diagnostics</h5>
+    </div>
+    <div class="card-body">
+        <div class="list-group">
+            {% for audit in report_data.audits %}
+                {% if audit.score is None and audit.description %}
+                    <div class="list-group-item">
+                        <h6 class="mb-1">{{ audit.title }}</h6>
+                        <p class="mb-1">{{ audit.description }}</p>
+                        {% if audit.details and audit.details.items %}
+                            <div class="mt-2">
+                                <h6 class="mb-2">Details:</h6>
+                                <ul class="list-unstyled">
+                                    {% for key, value in audit.details.items %}
+                                        <li><strong>{{ key }}:</strong> {{ value }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+</div> 
