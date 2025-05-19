@@ -5,11 +5,11 @@ from django.template.loader import render_to_string
 from django.views.decorators.http import require_POST
 from .models import Link, PSIReport
 from .services import PSIService
-import os, json
-from django.contrib import admin
+import json
 from django.views.decorators.csrf import csrf_exempt
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 import csv
+
 
 class LinkFilter(FilterSet):
     title = CharFilter(lookup_expr='icontains')
@@ -19,8 +19,10 @@ class LinkFilter(FilterSet):
         model = Link
         fields = ['title', 'description']
 
+
 def home(request):
     return render(request, 'links/home.html')
+
 
 def link_list(request):
     links = Link.objects.all()
@@ -33,18 +35,19 @@ def link_list(request):
         page_obj = paginator.page(1)
     except EmptyPage:
         page_obj = paginator.page(paginator.num_pages)
-    
+
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         html = render_to_string('links/partials/link_table.html', {
             'links': page_obj
         }, request=request)
         return JsonResponse({'html': html})
-    
+
     return render(request, 'links/link_list.html', {
         'filter': link_filter,
         'links': page_obj,
         'page_obj': page_obj
     })
+
 
 @require_POST
 def fetch_psi_report(request, link_id):
@@ -67,6 +70,7 @@ def fetch_psi_report(request, link_id):
             'message': str(e)
         }, status=400)
 
+
 @require_POST
 @csrf_exempt
 def delete_psi_report(request, report_id):
@@ -76,6 +80,7 @@ def delete_psi_report(request, report_id):
         return JsonResponse({'status': 'success'})
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
 
 def psi_reports_list(request, link_id):
     link = get_object_or_404(Link, id=link_id)
@@ -94,6 +99,7 @@ def psi_reports_list(request, link_id):
         'page_obj': page_obj
     })
 
+
 def psi_report_detail(request, report_id):
     report = get_object_or_404(PSIReport, id=report_id)
     # Defensive: get the nested data or None if missing
@@ -109,25 +115,6 @@ def psi_report_detail(request, report_id):
         'desktop_lhr': desktop_lhr,
     })
 
-# Admin actions
-def clear_links(modeladmin, request, queryset):
-    Link.objects.all().delete()
-clear_links.short_description = "Delete all links and their reports"
-
-def clear_reports(modeladmin, request, queryset):
-    PSIReport.objects.all().delete()
-clear_reports.short_description = "Delete all PSI reports (keep links)"
-
-class LinkAdmin(admin.ModelAdmin):
-    actions = [clear_links, clear_reports]
-
-class PSIReportAdmin(admin.ModelAdmin):
-    actions = [clear_reports]
-
-admin.site.unregister(Link)
-admin.site.unregister(PSIReport)
-admin.site.register(Link, LinkAdmin)
-admin.site.register(PSIReport, PSIReportAdmin)
 
 @require_POST
 @csrf_exempt
@@ -139,6 +126,7 @@ def bulk_delete_links(request):
         return JsonResponse({'status': 'success'})
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
 
 def export_psi_reports(request, link_id):
     link = get_object_or_404(Link, id=link_id)
@@ -153,6 +141,7 @@ def export_psi_reports(request, link_id):
         for r in reports
     ]
     return JsonResponse(data, safe=False)
+
 
 def export_psi_reports_csv(request, link_id):
     link = get_object_or_404(Link, id=link_id)
@@ -176,19 +165,20 @@ def export_psi_reports_csv(request, link_id):
         ])
     return response
 
+
 def export_links_csv(request):
     links = Link.objects.all().order_by('-created_at')
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = 'attachment; filename="links.csv"'
     writer = csv.writer(response)
     writer.writerow(['id', 'title', 'url', 'description', 'created_at', 'updated_at'])
-    for l in links:
+    for link in links:
         writer.writerow([
-            l.id,
-            l.title,
-            l.url,
-            l.description,
-            l.created_at.isoformat(),
-            l.updated_at.isoformat()
+            link.id,
+            link.title,
+            link.url,
+            link.description,
+            link.created_at.isoformat(),
+            link.updated_at.isoformat()
         ])
     return response 

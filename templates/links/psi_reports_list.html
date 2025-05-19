@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load links_extras %}
 
 {% block title %}PSI Reports - {{ link.title }}{% endblock %}
 
@@ -54,16 +55,16 @@
                 <td>{{ report.created_at|date:"Y-m-d" }}</td>
                 <td>{{ report.created_at|date:"H:i:s" }}</td>
                 {% with lhr=report.mobile_report.lighthouseResult %}
-                    <td>{% if lhr.audits.first-contentful-paint.displayValue %}<span class="badge bg-info">{{ lhr.audits.first-contentful-paint.displayValue }}</span>{% else %}<span class="badge bg-secondary">N/A</span>{% endif %}</td>
-                    <td>{% if lhr.audits.largest-contentful-paint.displayValue %}<span class="badge bg-info">{{ lhr.audits.largest-contentful-paint.displayValue }}</span>{% else %}<span class="badge bg-secondary">N/A</span>{% endif %}</td>
-                    <td>{% if lhr.audits.cumulative-layout-shift.displayValue %}<span class="badge bg-info">{{ lhr.audits.cumulative-layout-shift.displayValue }}</span>{% else %}<span class="badge bg-secondary">N/A</span>{% endif %}</td>
-                    <td>{% if lhr.audits.interaction-to-next-paint.displayValue %}<span class="badge bg-info">{{ lhr.audits.interaction-to-next-paint.displayValue }}</span>{% else %}<span class="badge bg-secondary">N/A</span>{% endif %}</td>
+                    <td>{% with fcp=lhr.audits|getitem:'first-contentful-paint' %}{% if fcp.displayValue %}<span class="badge bg-info">{{ fcp.displayValue }}</span>{% else %}<span class="badge bg-secondary">N/A</span>{% endif %}{% endwith %}</td>
+                    <td>{% with lcp=lhr.audits|getitem:'largest-contentful-paint' %}{% if lcp.displayValue %}<span class="badge bg-info">{{ lcp.displayValue }}</span>{% else %}<span class="badge bg-secondary">N/A</span>{% endif %}{% endwith %}</td>
+                    <td>{% with cls=lhr.audits|getitem:'cumulative-layout-shift' %}{% if cls.displayValue %}<span class="badge bg-info">{{ cls.displayValue }}</span>{% else %}<span class="badge bg-secondary">N/A</span>{% endif %}{% endwith %}</td>
+                    <td>{% with inp=lhr.audits|getitem:'interaction-to-next-paint' %}{% if inp.displayValue %}<span class="badge bg-info">{{ inp.displayValue }}</span>{% else %}<span class="badge bg-secondary">N/A</span>{% endif %}{% endwith %}</td>
                 {% endwith %}
                 {% with lhr=report.desktop_report.lighthouseResult %}
-                    <td>{% if lhr.audits.first-contentful-paint.displayValue %}<span class="badge bg-info">{{ lhr.audits.first-contentful-paint.displayValue }}</span>{% else %}<span class="badge bg-secondary">N/A</span>{% endif %}</td>
-                    <td>{% if lhr.audits.largest-contentful-paint.displayValue %}<span class="badge bg-info">{{ lhr.audits.largest-contentful-paint.displayValue }}</span>{% else %}<span class="badge bg-secondary">N/A</span>{% endif %}</td>
-                    <td>{% if lhr.audits.cumulative-layout-shift.displayValue %}<span class="badge bg-info">{{ lhr.audits.cumulative-layout-shift.displayValue }}</span>{% else %}<span class="badge bg-secondary">N/A</span>{% endif %}</td>
-                    <td>{% if lhr.audits.interaction-to-next-paint.displayValue %}<span class="badge bg-info">{{ lhr.audits.interaction-to-next-paint.displayValue }}</span>{% else %}<span class="badge bg-secondary">N/A</span>{% endif %}</td>
+                    <td>{% with fcp=lhr.audits|getitem:'first-contentful-paint' %}{% if fcp.displayValue %}<span class="badge bg-info">{{ fcp.displayValue }}</span>{% else %}<span class="badge bg-secondary">N/A</span>{% endif %}{% endwith %}</td>
+                    <td>{% with lcp=lhr.audits|getitem:'largest-contentful-paint' %}{% if lcp.displayValue %}<span class="badge bg-info">{{ lcp.displayValue }}</span>{% else %}<span class="badge bg-secondary">N/A</span>{% endif %}{% endwith %}</td>
+                    <td>{% with cls=lhr.audits|getitem:'cumulative-layout-shift' %}{% if cls.displayValue %}<span class="badge bg-info">{{ cls.displayValue }}</span>{% else %}<span class="badge bg-secondary">N/A</span>{% endif %}{% endwith %}</td>
+                    <td>{% with inp=lhr.audits|getitem:'interaction-to-next-paint' %}{% if inp.displayValue %}<span class="badge bg-info">{{ inp.displayValue }}</span>{% else %}<span class="badge bg-secondary">N/A</span>{% endif %}{% endwith %}</td>
                 {% endwith %}
                 <td>
                     <a href="{% url 'psi_report_detail' report.id %}" class="btn btn-outline-primary btn-sm" title="View Details">
