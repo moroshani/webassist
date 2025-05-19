@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+
+{% block title %}Home - WebAssist{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 text-center">
+        <h1 class="display-4 mb-4">Welcome to WebAssist</h1>
+        <p class="lead">
+            Your personal link management solution. Store, organize, and access your favorite websites all in one place.
+        </p>
+        <div class="mt-4">
+            <a href="{% url 'link_list' %}" class="btn btn-primary btn-lg">View Your Sites</a>
+        </div>
+    </div>
+</div>
+{% endblock %} 
