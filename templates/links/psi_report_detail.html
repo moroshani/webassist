@@ -44,38 +44,66 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Create category scores chart
-    const categoryScores = {
+    const mobileData = {
         performance: {{ report.mobile_report.lighthouseResult.categories.performance.score }},
         accessibility: {{ report.mobile_report.lighthouseResult.categories.accessibility.score }},
         'best-practices': {{ report.mobile_report.lighthouseResult.categories.bestPractices.score }},
         seo: {{ report.mobile_report.lighthouseResult.categories.seo.score }}
     };
 
-    const ctx = document.getElementById('categoryScoresChart').getContext('2d');
-    new Chart(ctx, {
-        type: 'radar',
-        data: {
-            labels: Object.keys(categoryScores).map(key => key.charAt(0).toUpperCase() + key.slice(1)),
-            datasets: [{
-                label: 'Category Scores',
-                data: Object.values(categoryScores),
-                backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                borderColor: 'rgba(54, 162, 235, 1)',
-                pointBackgroundColor: 'rgba(54, 162, 235, 1)',
-                pointBorderColor: '#fff',
-                pointHoverBackgroundColor: '#fff',
-                pointHoverBorderColor: 'rgba(54, 162, 235, 1)'
-            }]
-        },
-        options: {
-            scales: {
-                r: {
-                    beginAtZero: true,
-                    max: 1
+    const desktopData = {
+        performance: {{ report.desktop_report.lighthouseResult.categories.performance.score }},
+        accessibility: {{ report.desktop_report.lighthouseResult.categories.accessibility.score }},
+        'best-practices': {{ report.desktop_report.lighthouseResult.categories.bestPractices.score }},
+        seo: {{ report.desktop_report.lighthouseResult.categories.seo.score }}
+    };
+
+    let chart = null;
+
+    function createChart(data) {
+        const ctx = document.getElementById('categoryScoresChart').getContext('2d');
+        if (chart) {
+            chart.destroy();
+        }
+        chart = new Chart(ctx, {
+            type: 'radar',
+            data: {
+                labels: Object.keys(data).map(key => key.charAt(0).toUpperCase() + key.slice(1)),
+                datasets: [{
+                    label: 'Category Scores',
+                    data: Object.values(data),
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    pointBackgroundColor: 'rgba(54, 162, 235, 1)',
+                    pointBorderColor: '#fff',
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: 'rgba(54, 162, 235, 1)'
+                }]
+            },
+            options: {
+                scales: {
+                    r: {
+                        beginAtZero: true,
+                        max: 1
+                    }
                 }
             }
-        }
+        });
+    }
+
+    // Initialize with mobile data
+    createChart(mobileData);
+
+    // Update chart when switching tabs
+    document.querySelectorAll('button[data-bs-toggle="tab"]').forEach(button => {
+        button.addEventListener('shown.bs.tab', function(e) {
+            const target = e.target.getAttribute('data-bs-target');
+            if (target === '#mobile') {
+                createChart(mobileData);
+            } else if (target === '#desktop') {
+                createChart(desktopData);
+            }
+        });
     });
 });
 </script>

@@ -80,4 +80,7 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
+# PageSpeed Insights API Key
+PSI_API_KEY = 'AIzaSyCTGTYjk95BRnFUOVJmCASsp3FYLw4vZow'
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField' 

@@ -1,21 +1,28 @@
 # WebAssist
 
-A Django application for managing and organizing web links with a clean, modern interface.
+WebAssist is a Django-based web application for managing and analyzing web links using Google's PageSpeed Insights API. It helps you monitor and improve your website's performance by providing detailed insights and recommendations.
 
 ## Features
 
-- Home page with welcome message and introduction
-- Sites page with a table of stored links
-- Search and filter functionality
-- Admin interface for CRUD operations
-- Responsive design using Bootstrap
-- Clean and modern UI
+- **Link Management**: Add, edit, and manage web links with titles, URLs, and descriptions
+- **Performance Analysis**: Get comprehensive PageSpeed Insights reports for both mobile and desktop
+- **Visual Reports**: View performance metrics with interactive charts and visualizations
+- **Historical Data**: Track performance changes over time with stored reports
+- **Search & Filter**: Easily find and filter links and reports
+- **Real-time Updates**: AJAX-powered refresh functionality
 
-## Setup
+## Technologies Used
+
+- **Backend**: Django 4.x, Python 3.x
+- **Frontend**: Bootstrap 5, Chart.js, JavaScript
+- **Database**: SQLite
+- **APIs**: Google PageSpeed Insights API v5
+
+## Installation
 
 1. Clone the repository:
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/yourusername/webassist.git
 cd webassist
 ```
 
@@ -30,29 +37,68 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-4. Run migrations:
+4. Set up environment variables:
+```bash
+# Create a .env file with the following variables
+PSI_API_KEY=your_pagespeed_insights_api_key
+SECRET_KEY=your_django_secret_key
+```
+
+5. Run migrations:
 ```bash
 python manage.py migrate
 ```
 
-5. Create a superuser:
+6. Create a superuser:
 ```bash
 python manage.py createsuperuser
 ```
 
-6. Run the development server:
+7. Run the development server:
 ```bash
 python manage.py runserver
 ```
 
-7. Access the application:
-- Home page: http://127.0.0.1:8000/
-- Sites page: http://127.0.0.1:8000/sites/
-- Admin interface: http://127.0.0.1:8000/admin/
+## Usage
 
-## Technologies Used
+1. Access the admin interface at `/admin` to manage links
+2. View all links at `/sites/`
+3. Use the "Fetch PSI" button to get performance reports
+4. View detailed reports and metrics in the reports section
 
-- Django 5.0.2
-- Bootstrap 5.3.0
-- django-filter 23.5
-- SQLite (development database) 
+## Project Structure
+
+```
+webassist/
+├── links/                    # Main application
+│   ├── models.py            # Database models
+│   ├── views.py             # View functions
+│   ├── services.py          # PSI API integration
+│   └── urls.py              # URL routing
+├── templates/               # HTML templates
+│   ├── base.html           # Base template
+│   └── links/              # App-specific templates
+├── static/                 # Static files
+│   ├── css/               # Stylesheets
+│   └── js/                # JavaScript files
+└── manage.py              # Django management script
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Acknowledgments
+
+- Google PageSpeed Insights API
+- Django Framework
+- Bootstrap
+- Chart.js 
