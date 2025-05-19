@@ -19,8 +19,8 @@
             </div>
             <div class="card-body">
                 <div class="list-group">
-                    {% for metric in report_data.audits %}
-                        {% if metric.score is not None %}
+                    {% for key, metric in report_data.audits.items %}
+                        {% if metric.score is not None and metric.scoreDisplayMode == 'numeric' %}
                             <div class="list-group-item">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <h6 class="mb-1">{{ metric.title }}</h6>
@@ -47,8 +47,8 @@
     </div>
     <div class="card-body">
         <div class="list-group">
-            {% for audit in report_data.audits %}
-                {% if audit.score is not None and audit.score < 1 %}
+            {% for key, audit in report_data.audits.items %}
+                {% if audit.score is not None and audit.score < 1 and audit.scoreDisplayMode == 'numeric' %}
                     <div class="list-group-item">
                         <div class="d-flex justify-content-between align-items-center">
                             <h6 class="mb-1">{{ audit.title }}</h6>
@@ -63,9 +63,17 @@
                             <div class="mt-2">
                                 <h6 class="mb-2">Details:</h6>
                                 <ul class="list-unstyled">
-                                    {% for key, value in audit.details.items %}
-                                        <li><strong>{{ key }}:</strong> {{ value }}</li>
-                                    {% endfor %}
+                                    {% if audit.details.items is iterable %}
+                                        {% for detail in audit.details.items %}
+                                            {% if detail.0 is not None and detail.1 is not None %}
+                                                <li><strong>{{ detail.0 }}:</strong> {{ detail.1 }}</li>
+                                            {% else %}
+                                                <li>{{ detail }}</li>
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% else %}
+                                        <li>{{ audit.details.items|safe }}</li>
+                                    {% endif %}
                                 </ul>
                             </div>
                         {% endif %}
@@ -83,7 +91,7 @@
     </div>
     <div class="card-body">
         <div class="list-group">
-            {% for audit in report_data.audits %}
+            {% for key, audit in report_data.audits.items %}
                 {% if audit.score is None and audit.description %}
                     <div class="list-group-item">
                         <h6 class="mb-1">{{ audit.title }}</h6>
@@ -92,9 +100,17 @@
                             <div class="mt-2">
                                 <h6 class="mb-2">Details:</h6>
                                 <ul class="list-unstyled">
-                                    {% for key, value in audit.details.items %}
-                                        <li><strong>{{ key }}:</strong> {{ value }}</li>
-                                    {% endfor %}
+                                    {% if audit.details.items is iterable %}
+                                        {% for detail in audit.details.items %}
+                                            {% if detail.0 is not None and detail.1 is not None %}
+                                                <li><strong>{{ detail.0 }}:</strong> {{ detail.1 }}</li>
+                                            {% else %}
+                                                <li>{{ detail }}</li>
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% else %}
+                                        <li>{{ audit.details.items|safe }}</li>
+                                    {% endif %}
                                 </ul>
                             </div>
                         {% endif %}
