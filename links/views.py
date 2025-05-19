@@ -1,5 +1,7 @@
 from django.shortcuts import render
 from django_filters import FilterSet, CharFilter
+from django.http import JsonResponse
+from django.template.loader import render_to_string
 from .models import Link
 
 class LinkFilter(FilterSet):
@@ -16,6 +18,13 @@ def home(request):
 def link_list(request):
     links = Link.objects.all()
     link_filter = LinkFilter(request.GET, queryset=links)
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        html = render_to_string('links/partials/link_table.html', {
+            'links': link_filter.qs
+        }, request=request)
+        return JsonResponse({'html': html})
+    
     return render(request, 'links/link_list.html', {
         'filter': link_filter,
         'links': link_filter.qs
