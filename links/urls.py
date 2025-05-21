@@ -15,4 +15,7 @@ urlpatterns = [
         name='export_psi_reports_csv',
     ),
     path('sites/export/csv/', views.export_links_csv, name='export_links_csv'),
+    path('reports/group/<int:group_id>/delete/', views.delete_psi_report_group, name='delete_psi_report_group'),
+    path('sites/export/json/', views.export_links_json, name='export_links_json'),
+    path('sites/import/json/', views.import_links_json, name='import_links_json'),
 ] 

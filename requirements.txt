@@ -1,2 +1,10 @@
 Django==5.0.2
-django-filter==23.5 
+django-filter==23.5
+python-dotenv
+pytest
+django-pytest
+pytest-django
+coverage
+black
+isort
+mypy 

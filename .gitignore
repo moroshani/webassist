@@ -40,4 +40,14 @@ ENV/
 
 # OS
 .DS_Store
-Thumbs.db 
+Thumbs.db
+
+# Test output, coverage, mypy, and formatting cache files
+.coverage
+htmlcov/
+.mypy_cache/
+.pytest_cache/
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3 

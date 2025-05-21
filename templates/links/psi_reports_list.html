@@ -26,62 +26,136 @@
 </div>
 
 <div class="table-responsive">
-    <table class="table table-striped table-hover" id="reportsTable">
-        <thead>
-            <tr>
-                <th>Date</th>
-                <th>Time</th>
-                <th colspan="4" class="text-center">Mobile Metrics</th>
-                <th colspan="4" class="text-center">Desktop Metrics</th>
-                <th>Actions</th>
-            </tr>
-            <tr>
-                <th></th>
-                <th></th>
-                <th>FCP</th>
-                <th>LCP</th>
-                <th>CLS</th>
-                <th>INP</th>
-                <th>FCP</th>
-                <th>LCP</th>
-                <th>CLS</th>
-                <th>INP</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for report in reports %}
-            <tr>
-                <td>{{ report.created_at|date:"Y-m-d" }}</td>
-                <td>{{ report.created_at|date:"H:i:s" }}</td>
-                {% with lhr=report.mobile_report.lighthouseResult %}
-                    <td>{% with fcp=lhr.audits|getitem:'first-contentful-paint' %}{% if fcp.displayValue %}<span class="badge bg-info">{{ fcp.displayValue }}</span>{% else %}<span class="badge bg-secondary">N/A</span>{% endif %}{% endwith %}</td>
-                    <td>{% with lcp=lhr.audits|getitem:'largest-contentful-paint' %}{% if lcp.displayValue %}<span class="badge bg-info">{{ lcp.displayValue }}</span>{% else %}<span class="badge bg-secondary">N/A</span>{% endif %}{% endwith %}</td>
-                    <td>{% with cls=lhr.audits|getitem:'cumulative-layout-shift' %}{% if cls.displayValue %}<span class="badge bg-info">{{ cls.displayValue }}</span>{% else %}<span class="badge bg-secondary">N/A</span>{% endif %}{% endwith %}</td>
-                    <td>{% with inp=lhr.audits|getitem:'interaction-to-next-paint' %}{% if inp.displayValue %}<span class="badge bg-info">{{ inp.displayValue }}</span>{% else %}<span class="badge bg-secondary">N/A</span>{% endif %}{% endwith %}</td>
-                {% endwith %}
-                {% with lhr=report.desktop_report.lighthouseResult %}
-                    <td>{% with fcp=lhr.audits|getitem:'first-contentful-paint' %}{% if fcp.displayValue %}<span class="badge bg-info">{{ fcp.displayValue }}</span>{% else %}<span class="badge bg-secondary">N/A</span>{% endif %}{% endwith %}</td>
-                    <td>{% with lcp=lhr.audits|getitem:'largest-contentful-paint' %}{% if lcp.displayValue %}<span class="badge bg-info">{{ lcp.displayValue }}</span>{% else %}<span class="badge bg-secondary">N/A</span>{% endif %}{% endwith %}</td>
-                    <td>{% with cls=lhr.audits|getitem:'cumulative-layout-shift' %}{% if cls.displayValue %}<span class="badge bg-info">{{ cls.displayValue }}</span>{% else %}<span class="badge bg-secondary">N/A</span>{% endif %}{% endwith %}</td>
-                    <td>{% with inp=lhr.audits|getitem:'interaction-to-next-paint' %}{% if inp.displayValue %}<span class="badge bg-info">{{ inp.displayValue }}</span>{% else %}<span class="badge bg-secondary">N/A</span>{% endif %}{% endwith %}</td>
-                {% endwith %}
-                <td>
-                    <a href="{% url 'psi_report_detail' report.id %}" class="btn btn-outline-primary btn-sm" title="View Details">
-                        <i class="bi bi-bar-chart"></i>
-                    </a>
-                    <button class="btn btn-outline-danger btn-sm delete-report-btn" data-report-id="{{ report.id }}" title="Delete Report">
-                        <i class="bi bi-trash"></i>
-                    </button>
-                </td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="11" class="text-center">No reports found. Generate a report using the Fetch PSI button.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <ul class="nav nav-tabs mb-3" id="reportTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="mobile-tab" data-bs-toggle="tab" data-bs-target="#mobile" type="button" role="tab" aria-controls="mobile" aria-selected="true">Mobile</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="desktop-tab" data-bs-toggle="tab" data-bs-target="#desktop" type="button" role="tab" aria-controls="desktop" aria-selected="false">Desktop</button>
+        </li>
+    </ul>
+    <div class="tab-content" id="reportTabsContent">
+        <div class="tab-pane fade show active" id="mobile" role="tabpanel" aria-labelledby="mobile-tab">
+            <table class="reports-table table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Performance</th>
+                        <th>Accessibility</th>
+                        <th>Best Practices</th>
+                        <th>SEO</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for report in mobile_reports %}
+                    <tr data-group-id="{{ report.group.id }}">
+                        <td>{{ report.fetch_time|date:"Y-m-d" }}</td>
+                        <td>{{ report.fetch_time|date:"H:i:s" }}</td>
+                        <td>{% if report.category_scores %}
+                            {% with score=report.category_scores.performance|mul:100 %}
+                                <span class="badge {% if score >= 90 %}bg-success{% elif score >= 50 %}bg-warning text-dark{% else %}bg-danger{% endif %}">{{ score|floatformat:0|default:"N/A" }}</span>
+                            {% endwith %}
+                        {% else %}N/A{% endif %}</td>
+                        <td>{% if report.category_scores %}
+                            {% with score=report.category_scores.accessibility|mul:100 %}
+                                <span class="badge {% if score >= 90 %}bg-success{% elif score >= 50 %}bg-warning text-dark{% else %}bg-danger{% endif %}">{{ score|floatformat:0|default:"N/A" }}</span>
+                            {% endwith %}
+                        {% else %}N/A{% endif %}</td>
+                        <td>{% if report.category_scores %}
+                            {% with score=report.category_scores.best_practices|mul:100 %}
+                                <span class="badge {% if score >= 90 %}bg-success{% elif score >= 50 %}bg-warning text-dark{% else %}bg-danger{% endif %}">{{ score|floatformat:0|default:"N/A" }}</span>
+                            {% endwith %}
+                        {% else %}N/A{% endif %}</td>
+                        <td>{% if report.category_scores %}
+                            {% with score=report.category_scores.seo|mul:100 %}
+                                <span class="badge {% if score >= 90 %}bg-success{% elif score >= 50 %}bg-warning text-dark{% else %}bg-danger{% endif %}">{{ score|floatformat:0|default:"N/A" }}</span>
+                            {% endwith %}
+                        {% else %}N/A{% endif %}</td>
+                        <td>
+                            <a href="{% url 'psi_report_detail' report.id %}" class="btn btn-outline-primary btn-sm" title="View Details">
+                                <i class="bi bi-bar-chart"></i>
+                            </a>
+                            <button class="btn btn-outline-danger btn-sm delete-report-group-btn" 
+                                data-group-id="{{ report.group.id }}"
+                                data-link-title="{{ link.title }}"
+                                data-date="{{ report.fetch_time|date:'Y-m-d' }}"
+                                data-time="{{ report.fetch_time|date:'H:i:s' }}"
+                                title="Delete Both Reports">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center">No mobile reports found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="tab-pane fade" id="desktop" role="tabpanel" aria-labelledby="desktop-tab">
+            <table class="reports-table table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Performance</th>
+                        <th>Accessibility</th>
+                        <th>Best Practices</th>
+                        <th>SEO</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for report in desktop_reports %}
+                    <tr data-group-id="{{ report.group.id }}">
+                        <td>{{ report.fetch_time|date:"Y-m-d" }}</td>
+                        <td>{{ report.fetch_time|date:"H:i:s" }}</td>
+                        <td>{% if report.category_scores %}
+                            {% with score=report.category_scores.performance|mul:100 %}
+                                <span class="badge {% if score >= 90 %}bg-success{% elif score >= 50 %}bg-warning text-dark{% else %}bg-danger{% endif %}">{{ score|floatformat:0|default:"N/A" }}</span>
+                            {% endwith %}
+                        {% else %}N/A{% endif %}</td>
+                        <td>{% if report.category_scores %}
+                            {% with score=report.category_scores.accessibility|mul:100 %}
+                                <span class="badge {% if score >= 90 %}bg-success{% elif score >= 50 %}bg-warning text-dark{% else %}bg-danger{% endif %}">{{ score|floatformat:0|default:"N/A" }}</span>
+                            {% endwith %}
+                        {% else %}N/A{% endif %}</td>
+                        <td>{% if report.category_scores %}
+                            {% with score=report.category_scores.best_practices|mul:100 %}
+                                <span class="badge {% if score >= 90 %}bg-success{% elif score >= 50 %}bg-warning text-dark{% else %}bg-danger{% endif %}">{{ score|floatformat:0|default:"N/A" }}</span>
+                            {% endwith %}
+                        {% else %}N/A{% endif %}</td>
+                        <td>{% if report.category_scores %}
+                            {% with score=report.category_scores.seo|mul:100 %}
+                                <span class="badge {% if score >= 90 %}bg-success{% elif score >= 50 %}bg-warning text-dark{% else %}bg-danger{% endif %}">{{ score|floatformat:0|default:"N/A" }}</span>
+                            {% endwith %}
+                        {% else %}N/A{% endif %}</td>
+                        <td>
+                            <a href="{% url 'psi_report_detail' report.id %}" class="btn btn-outline-primary btn-sm" title="View Details">
+                                <i class="bi bi-bar-chart"></i>
+                            </a>
+                            <button class="btn btn-outline-danger btn-sm delete-report-group-btn" 
+                                data-group-id="{{ report.group.id }}"
+                                data-link-title="{{ link.title }}"
+                                data-date="{{ report.fetch_time|date:'Y-m-d' }}"
+                                data-time="{{ report.fetch_time|date:'H:i:s' }}"
+                                title="Delete Both Reports">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center">No desktop reports found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
 
 {% if page_obj.has_other_pages %}
@@ -125,14 +199,14 @@
 const searchInput = document.getElementById('reportSearch');
 searchInput.addEventListener('keyup', function() {
     const filter = this.value.toLowerCase();
-    const rows = document.querySelectorAll('#reportsTable tbody tr');
+    const rows = document.querySelectorAll('.reports-table tbody tr');
     rows.forEach(row => {
         row.style.display = row.textContent.toLowerCase().includes(filter) ? '' : 'none';
     });
 });
 
 // Sorting (simple, by clicking headers)
-document.querySelectorAll('#reportsTable th').forEach((th, idx) => {
+document.querySelectorAll('.reports-table th').forEach((th, idx) => {
     th.style.cursor = 'pointer';
     th.addEventListener('click', function() {
         const table = th.closest('table');
@@ -154,31 +228,33 @@ document.querySelectorAll('#reportsTable th').forEach((th, idx) => {
 
 // Delete report
 document.addEventListener('DOMContentLoaded', function() {
-    document.getElementById('reportsTable').addEventListener('click', function(e) {
-        if (e.target.closest('.delete-report-btn')) {
-            const btn = e.target.closest('.delete-report-btn');
-            showConfirm('Are you sure you want to delete this report?', () => {
-                const reportId = btn.getAttribute('data-report-id');
-                showLoading();
-                fetch(`/reports/${reportId}/delete/`, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': getCookie('csrftoken'),
-                    },
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        btn.closest('tr').remove();
-                        showToast('Report deleted.', 'success');
-                    } else {
-                        showToast(data.message || 'Failed to delete report.', 'danger');
-                    }
-                })
-                .catch(() => showToast('Failed to delete report.', 'danger'))
-                .finally(() => hideLoading());
-            });
-        }
+    document.querySelectorAll('.reports-table').forEach(function(table) {
+        table.addEventListener('click', function(e) {
+            if (e.target.closest('.delete-report-btn')) {
+                const btn = e.target.closest('.delete-report-btn');
+                showConfirm('Are you sure you want to delete this report?', () => {
+                    const reportId = btn.getAttribute('data-report-id');
+                    showLoading();
+                    fetch(`/reports/${reportId}/delete/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': getCookie('csrftoken'),
+                        },
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            btn.closest('tr').remove();
+                            showToast('Report deleted.', 'success');
+                        } else {
+                            showToast(data.message || 'Failed to delete report.', 'danger');
+                        }
+                    })
+                    .catch(() => showToast('Failed to delete report.', 'danger'))
+                    .finally(() => hideLoading());
+                });
+            }
+        });
     });
 });
 
@@ -191,7 +267,7 @@ document.getElementById('exportReportsCsvBtn').addEventListener('click', functio
 // Date range filter
 const startDate = document.getElementById('startDate');
 const endDate = document.getElementById('endDate');
-const reportsTableRows = document.querySelectorAll('#reportsTable tbody tr');
+const reportsTableRows = document.querySelectorAll('.reports-table tbody tr');
 function filterByDate() {
     const start = startDate.value ? new Date(startDate.value) : null;
     const end = endDate.value ? new Date(endDate.value) : null;
@@ -223,5 +299,144 @@ function filterByScore() {
 }
 minScore.addEventListener('input', filterByScore);
 maxScore.addEventListener('input', filterByScore);
+
+// --- Bootstrap Modal for Confirm ---
+function showConfirm(message, callback) {
+    let modal = document.getElementById('confirmModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.innerHTML = `
+        <div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
+          <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title" id="confirmModalLabel">Confirm</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <div class="modal-body" id="confirmModalBody"></div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmModalOk">Delete</button>
+              </div>
+            </div>
+          </div>
+        </div>`;
+        document.body.appendChild(modal);
+    }
+    document.getElementById('confirmModalBody').innerHTML = message;
+    const okBtn = document.getElementById('confirmModalOk');
+    const bsModal = new bootstrap.Modal(document.getElementById('confirmModal'));
+    function onOk() {
+        okBtn.removeEventListener('click', onOk);
+        bsModal.hide();
+        callback();
+    }
+    okBtn.addEventListener('click', onOk);
+    bsModal.show();
+}
+// --- Loading Overlay ---
+function showLoading() {
+    let overlay = document.getElementById('loadingOverlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'loadingOverlay';
+        overlay.style.position = 'fixed';
+        overlay.style.top = 0;
+        overlay.style.left = 0;
+        overlay.style.width = '100vw';
+        overlay.style.height = '100vh';
+        overlay.style.background = 'rgba(255,255,255,0.7)';
+        overlay.style.zIndex = 2000;
+        overlay.innerHTML = '<div class="d-flex justify-content-center align-items-center" style="height:100vh;"><div class="spinner-border text-primary" style="width:3rem;height:3rem;" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+        document.body.appendChild(overlay);
+    }
+    overlay.style.display = 'block';
+}
+function hideLoading() {
+    const overlay = document.getElementById('loadingOverlay');
+    if (overlay) overlay.style.display = 'none';
+}
+// --- Bootstrap Toast ---
+function showToast(msg, type) {
+    let toastContainer = document.getElementById('toastContainer');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'toastContainer';
+        toastContainer.style.position = 'fixed';
+        toastContainer.style.top = '1rem';
+        toastContainer.style.right = '1rem';
+        toastContainer.style.zIndex = 3000;
+        document.body.appendChild(toastContainer);
+    }
+    const toastId = 'toast' + Date.now();
+    const color = type === 'success' ? 'bg-success text-white' : (type === 'danger' ? 'bg-danger text-white' : 'bg-secondary text-white');
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center ${color}`;
+    toast.id = toastId;
+    toast.setAttribute('role', 'alert');
+    toast.setAttribute('aria-live', 'assertive');
+    toast.setAttribute('aria-atomic', 'true');
+    toast.style.minWidth = '200px';
+    toast.innerHTML = `
+      <div class="d-flex">
+        <div class="toast-body">${msg}</div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+    `;
+    toastContainer.appendChild(toast);
+    const bsToast = new bootstrap.Toast(toast, { delay: 3000 });
+    bsToast.show();
+    toast.addEventListener('hidden.bs.toast', () => toast.remove());
+}
+// --- CSRF Cookie Helper ---
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.delete-report-group-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const groupId = btn.getAttribute('data-group-id');
+            const linkTitle = btn.getAttribute('data-link-title');
+            const date = btn.getAttribute('data-date');
+            const time = btn.getAttribute('data-time');
+            showConfirm(
+                `Are you sure you want to delete <b>both the mobile and desktop reports</b> for <b>${linkTitle}</b> on <b>${date}</b> at <b>${time}</b>?<br><br><span class='text-danger'>This will remove all associated data for this test run. This action cannot be undone.</span>`,
+                () => {
+                    showLoading();
+                    fetch(`/reports/group/${groupId}/delete/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': getCookie('csrftoken'),
+                        },
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            // Remove both rows from both tables
+                            document.querySelectorAll(`tr[data-group-id='${groupId}']`).forEach(row => row.remove());
+                            showToast('Both mobile and desktop reports deleted.', 'success');
+                        } else {
+                            showToast(data.message || 'Failed to delete reports.', 'danger');
+                        }
+                    })
+                    .catch(() => showToast('Failed to delete reports.', 'danger'))
+                    .finally(() => hideLoading());
+                }
+            );
+        });
+    });
+});
 </script>
 {% endblock %} 

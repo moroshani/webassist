@@ -2,13 +2,14 @@ from django.shortcuts import render, get_object_or_404
 from django_filters import FilterSet, CharFilter
 from django.http import JsonResponse, HttpResponse
 from django.template.loader import render_to_string
-from django.views.decorators.http import require_POST
-from .models import Link, PSIReport
+from django.views.decorators.http import require_POST, require_GET
+from .models import Link, Page, PSIReport, PSIReportGroup
 from .services import PSIService
 import json
 from django.views.decorators.csrf import csrf_exempt
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 import csv
+import io
 
 
 class LinkFilter(FilterSet):
@@ -53,16 +54,13 @@ def link_list(request):
 def fetch_psi_report(request, link_id):
     link = get_object_or_404(Link, id=link_id)
     try:
-        mobile_report, desktop_report = PSIService.fetch_both_reports(link.url)
-        psi_report = PSIReport.objects.create(
-            link=link,
-            mobile_report=mobile_report,
-            desktop_report=desktop_report
-        )
+        group, mobile_report, desktop_report = PSIService.fetch_and_store_report_group(link.url)
         return JsonResponse({
             'status': 'success',
-            'message': 'PSI report fetched successfully',
-            'report_id': psi_report.id
+            'message': 'PSI reports fetched and stored successfully',
+            'group_id': group.id,
+            'mobile_report_id': mobile_report.id,
+            'desktop_report_id': desktop_report.id
         })
     except Exception as e:
         return JsonResponse({
@@ -72,7 +70,6 @@ def fetch_psi_report(request, link_id):
 
 
 @require_POST
-@csrf_exempt
 def delete_psi_report(request, report_id):
     try:
         report = get_object_or_404(PSIReport, id=report_id)
@@ -84,7 +81,10 @@ def delete_psi_report(request, report_id):
 
 def psi_reports_list(request, link_id):
     link = get_object_or_404(Link, id=link_id)
-    reports = link.psi_reports.all()
+    page = Page.objects.filter(url=link.url).first()
+    reports = page.psi_reports.all() if page else PSIReport.objects.none()
+    mobile_reports = reports.filter(strategy='mobile')
+    desktop_reports = reports.filter(strategy='desktop')
     paginator = Paginator(reports, 10)  # 10 reports per page
     page_number = request.GET.get('page')
     try:
@@ -96,28 +96,28 @@ def psi_reports_list(request, link_id):
     return render(request, 'links/psi_reports_list.html', {
         'link': link,
         'reports': page_obj,
+        'mobile_reports': mobile_reports,
+        'desktop_reports': desktop_reports,
         'page_obj': page_obj
     })
 
 
 def psi_report_detail(request, report_id):
     report = get_object_or_404(PSIReport, id=report_id)
-    # Defensive: get the nested data or None if missing
-    def get_lhr(report_json):
-        if report_json and isinstance(report_json, dict):
-            return report_json.get('lighthouseResult')
-        return None
-    mobile_lhr = get_lhr(report.mobile_report)
-    desktop_lhr = get_lhr(report.desktop_report)
+    field_metrics = getattr(report, 'field_metrics', None)
+    lab_metrics = getattr(report, 'lab_metrics', None)
+    category_scores = getattr(report, 'category_scores', None)
+    audits = report.audits.all()
     return render(request, 'links/psi_report_detail.html', {
         'report': report,
-        'mobile_lhr': mobile_lhr,
-        'desktop_lhr': desktop_lhr,
+        'field_metrics': field_metrics,
+        'lab_metrics': lab_metrics,
+        'category_scores': category_scores,
+        'audits': audits,
     })
 
 
 @require_POST
-@csrf_exempt
 def bulk_delete_links(request):
     try:
         data = json.loads(request.body)
@@ -181,4 +181,55 @@ def export_links_csv(request):
             link.created_at.isoformat(),
             link.updated_at.isoformat()
         ])
-    return response 
+    return response
+
+
+@require_POST
+def delete_psi_report_group(request, group_id):
+    try:
+        group = get_object_or_404(PSIReportGroup, id=group_id)
+        group.delete()
+        return JsonResponse({'status': 'success'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+
+@require_GET
+def export_links_json(request):
+    links = Link.objects.all().order_by('-created_at')
+    data = [
+        {
+            'id': link.id,
+            'title': link.title,
+            'url': link.url,
+            'description': link.description,
+            'created_at': link.created_at.isoformat(),
+            'updated_at': link.updated_at.isoformat(),
+        }
+        for link in links
+    ]
+    return JsonResponse(data, safe=False)
+
+
+@csrf_exempt
+@require_POST
+def import_links_json(request):
+    try:
+        if request.content_type == 'application/json':
+            data = json.loads(request.body)
+        else:
+            data = json.loads(request.FILES['file'].read().decode())
+        created = 0
+        for entry in data:
+            if 'url' in entry and 'title' in entry:
+                Link.objects.get_or_create(
+                    url=entry['url'],
+                    defaults={
+                        'title': entry.get('title', ''),
+                        'description': entry.get('description', ''),
+                    }
+                )
+                created += 1
+        return JsonResponse({'status': 'success', 'created': created})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400) 

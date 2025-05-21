@@ -11,7 +11,7 @@
         <button id="exportLinksCsvBtn" class="btn btn-outline-primary btn-sm ms-2"><i class="bi bi-file-earmark-spreadsheet"></i> Export Links CSV</button>
     </div>
     <div class="table-responsive">
-        <table class="table table-striped table-hover" id="linksTable">
+        <table class="table table-striped table-hover align-middle" aria-label="List of Sites" id="linksTable">
             <thead>
                 <tr>
                     <th><input type="checkbox" id="selectAllLinks"></th>
@@ -34,10 +34,10 @@
                     <td>{{ link.updated_at|date:"Y-m-d H:i" }}</td>
                     <td>
                         <div class="btn-group" role="group">
-                            <button class="btn btn-primary btn-sm fetch-psi" data-link-id="{{ link.id }}" data-bs-toggle="tooltip" title="Fetch PSI Report">
+                            <button class="btn btn-primary btn-sm fetch-psi" data-link-id="{{ link.id }}" data-bs-toggle="tooltip" title="Fetch PSI Report" aria-label="Fetch PageSpeed Insights report for {{ link.title }}" aria-busy="false">
                                 <i class="bi bi-speedometer2"></i> Fetch PSI
                             </button>
-                            <a href="{% url 'psi_reports_list' link.id %}" class="btn btn-info btn-sm">
+                            <a href="{% url 'psi_reports_list' link.id %}" class="btn btn-info btn-sm" aria-label="View reports for {{ link.title }}">
                                 <i class="bi bi-file-earmark-text"></i> Reports
                             </a>
                         </div>
@@ -48,7 +48,7 @@
         </table>
     </div>
 {% else %}
-    <div class="alert alert-info">
+    <div class="alert alert-info" role="alert" aria-live="polite">
         No links found. Add some links through the admin interface.
     </div>
 {% endif %}
@@ -167,9 +167,11 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.fetch-psi').forEach(button => {
         button.addEventListener('click', function() {
             const linkId = this.getAttribute('data-link-id');
+            console.log('Fetch PSI clicked', linkId);
             const originalText = this.innerHTML;
             this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Fetching...';
             this.disabled = true;
+            this.setAttribute('aria-busy', 'true');
             fetch(`/sites/${linkId}/fetch-psi/`, {
                 method: 'POST',
                 headers: {
@@ -182,7 +184,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.status === 'success') {
                     showToast('PSI report fetched successfully!', 'success');
                 } else {
-                    showToast(data.message || 'Error fetching PSI report.', 'danger');
+                    let msg = data.message || 'Error fetching PSI report.';
+                    if (msg.includes('quota')) {
+                        msg += ' (You may have exceeded your Google API quota.)';
+                    } else if (msg.includes('forbidden') || msg.includes('API key')) {
+                        msg += ' (Check your API key and Google Cloud Console restrictions.)';
+                    } else if (msg.includes('Invalid URL')) {
+                        msg += ' (Please check the URL and try again.)';
+                    }
+                    showToast(msg, 'danger');
                 }
             })
             .catch(error => {
@@ -192,6 +202,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .finally(() => {
                 this.innerHTML = originalText;
                 this.disabled = false;
+                this.setAttribute('aria-busy', 'false');
             });
         });
     });
@@ -221,4 +232,14 @@ function filterLinksByDate() {
 }
 linksStartDate.addEventListener('change', filterLinksByDate);
 linksEndDate.addEventListener('change', filterLinksByDate);
+
+function showToast(message, type = 'success') {
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center text-white bg-${type} border-0`;
+    toast.setAttribute('role', 'alert');
+    toast.setAttribute('aria-live', 'assertive');
+    toast.setAttribute('aria-atomic', 'true');
+    toast.tabIndex = 0;
+    // ... existing code ...
+}
 </script> 

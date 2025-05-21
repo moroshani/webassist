@@ -4,412 +4,230 @@
 {% block title %}PSI Report Details{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1>PSI Report Details</h1>
-    <a href="{% url 'psi_reports_list' report.link.id %}" class="btn btn-secondary">
-        <i class="bi bi-arrow-left"></i> Back to Reports
-    </a>
-</div>
-
-<div class="card mb-4">
-    <div class="card-body">
-        <h5 class="card-title">{{ report.link.title }}</h5>
-        <p class="mb-1"><strong>URL:</strong> <a href="{{ report.link.url }}" target="_blank">{{ report.link.url }}</a></p>
-        <p class="mb-1"><strong>Fetched at:</strong> {{ report.created_at|date:"Y-m-d H:i:s" }}</p>
-        <p class="mb-1"><strong>Report ID:</strong> {{ report.id }}</p>
+<div class="container-xxl">
+    <!-- Header Section -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 border-bottom pb-2">
+        <div>
+            <h2 class="mb-1">PageSpeed Insights Report</h2>
+            <div class="text-muted small">
+                Report for <a href="{{ report.page.url }}" target="_blank">{{ report.page.url }}</a>
+                – analyzed on {{ report.fetch_time|date:"Y-m-d H:i:s" }}
+                <span class="badge bg-secondary ms-2">{{ report.strategy|title }}</span>
+            </div>
+        </div>
     </div>
-</div>
 
-<ul class="nav nav-tabs mb-4" id="reportTabs" role="tablist">
-    <li class="nav-item" role="presentation">
-        <button class="nav-link active" id="mobile-tab" data-bs-toggle="tab" data-bs-target="#mobile" type="button" role="tab">
-            <i class="bi bi-phone"></i> Mobile
-        </button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link" id="desktop-tab" data-bs-toggle="tab" data-bs-target="#desktop" type="button" role="tab">
-            <i class="bi bi-display"></i> Desktop
-        </button>
-    </li>
-</ul>
+    <!-- Category Scores -->
+    {% if category_scores %}
+    <div class="row mb-4 g-3">
+        <div class="col-6 col-md-3">
+            <div class="card text-center border-success">
+                <div class="card-body">
+                    <h6 class="card-title">Performance</h6>
+                    <span class="display-6 fw-bold text-success">{{ category_scores.performance|mul:100|floatformat:0|default:"N/A" }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card text-center border-info">
+                <div class="card-body">
+                    <h6 class="card-title">Accessibility</h6>
+                    <span class="display-6 fw-bold text-info">{{ category_scores.accessibility|mul:100|floatformat:0|default:"N/A" }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card text-center border-primary">
+                <div class="card-body">
+                    <h6 class="card-title">Best Practices</h6>
+                    <span class="display-6 fw-bold text-primary">{{ category_scores.best_practices|mul:100|floatformat:0|default:"N/A" }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card text-center border-warning">
+                <div class="card-body">
+                    <h6 class="card-title">SEO</h6>
+                    <span class="display-6 fw-bold text-warning">{{ category_scores.seo|mul:100|floatformat:0|default:"N/A" }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
-{% with metrics_list="first-contentful-paint,FCP,info,First Contentful Paint;largest-contentful-paint,LCP,primary,Largest Contentful Paint;cumulative-layout-shift,CLS,warning,Cumulative Layout Shift;interaction-to-next-paint,INP,success,Interaction to Next Paint" %}
-{% with metrics=metrics_list|split:';' %}
-<div class="tab-content" id="reportTabsContent">
-    <!-- Mobile Report Tab -->
-    <div class="tab-pane fade show active" id="mobile" role="tabpanel">
-        {% if mobile_lhr %}
-            <!-- Radar Chart for Category Scores -->
-            <div class="mb-4">
-                <canvas id="mobileCategoryScoresChart" height="180"></canvas>
-            </div>
-            <div class="row mb-4">
-                <!-- Score Cards -->
-                <div class="col-md-3 mb-3">
-                    <div class="card text-center shadow-sm">
-                        <div class="card-body">
-                            <h6 class="card-title">Performance</h6>
-                            <span class="display-6 fw-bold text-success">{{ mobile_lhr.categories.performance.score|floatformat:2|default:"N/A" }}</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3 mb-3">
-                    <div class="card text-center shadow-sm">
-                        <div class="card-body">
-                            <h6 class="card-title">Accessibility</h6>
-                            <span class="display-6 fw-bold text-primary">{{ mobile_lhr.categories.accessibility.score|floatformat:2|default:"N/A" }}</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3 mb-3">
-                    <div class="card text-center shadow-sm">
-                        <div class="card-body">
-                            <h6 class="card-title">Best Practices</h6>
-                            <span class="display-6 fw-bold text-info">{{ mobile_lhr.categories.bestPractices.score|floatformat:2|default:"N/A" }}</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3 mb-3">
-                    <div class="card text-center shadow-sm">
-                        <div class="card-body">
-                            <h6 class="card-title">SEO</h6>
-                            <span class="display-6 fw-bold text-warning">{{ mobile_lhr.categories.seo.score|floatformat:2|default:"N/A" }}</span>
-                        </div>
+    <!-- Field Metrics (Core Web Vitals) -->
+    <div class="mb-4">
+        <h4>Field Metrics (Real User Data)</h4>
+        {% if field_metrics and field_metrics.has_data %}
+        <div class="row g-2">
+            <div class="col-6 col-md-2">
+                <div class="card text-center border-info">
+                    <div class="card-body p-2">
+                        <h6 class="card-title mb-1">FCP</h6>
+                        <span class="fw-bold">{{ field_metrics.fcp_ms|floatformat:0|default:"N/A" }} ms</span>
                     </div>
                 </div>
             </div>
-            <!-- Bar Chart for Core Web Vitals -->
-            <div class="mb-4">
-                <canvas id="mobileVitalsBarChart" height="120"></canvas>
-            </div>
-            <!-- Core Web Vitals Cards -->
-            <div class="row mb-4">
-                {% with audits=mobile_lhr.audits %}
-                {% for metric_str in metrics %}
-                {% with parts=metric_str|split:',' %}
-                <div class="col-md-3 mb-3">
-                    <div class="card text-center">
-                        <div class="card-body">
-                            <h6 class="card-title">{{ parts.1 }}
-                                <i class="bi bi-info-circle" data-bs-toggle="tooltip" title="{{ parts.3 }}"></i>
-                            </h6>
-                            {% with value=audits|getitem:parts.0 %}
-                                <span class="fw-bold badge bg-{{ parts.2 }}">{{ value.displayValue|default:"N/A" }}</span>
-                            {% endwith %}
-                        </div>
-                    </div>
-                </div>
-                {% endwith %}
-                {% endfor %}
-                {% endwith %}
-            </div>
-            <!-- Opportunities (Collapsible) -->
-            <div class="accordion mb-4" id="mobileOpportunities">
-                <div class="accordion-item">
-                    <h2 class="accordion-header" id="headingOpportunitiesM">
-                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOpportunitiesM" aria-expanded="true" aria-controls="collapseOpportunitiesM">
-                            Opportunities for Improvement
-                        </button>
-                    </h2>
-                    <div id="collapseOpportunitiesM" class="accordion-collapse collapse show" aria-labelledby="headingOpportunitiesM" data-bs-parent="#mobileOpportunities">
-                        <div class="accordion-body">
-                            {% for key, audit in mobile_lhr.audits.items %}
-                                {% if audit.score is not None and audit.score < 1 and audit.scoreDisplayMode == 'numeric' %}
-                                    <div class="mb-3">
-                                        <h6>{{ audit.title }}</h6>
-                                        <p class="mb-1">{{ audit.description }}</p>
-                                        {% if audit.details and audit.details.items %}
-                                            <pre class="bg-light p-2 small">{{ audit.details.items|safe }}</pre>
-                                        {% endif %}
-                                    </div>
-                                {% endif %}
-                            {% empty %}
-                                <div class="text-muted">No opportunities found.</div>
-                            {% endfor %}
-                        </div>
+            <div class="col-6 col-md-2">
+                <div class="card text-center border-primary">
+                    <div class="card-body p-2">
+                        <h6 class="card-title mb-1">LCP</h6>
+                        <span class="fw-bold">{{ field_metrics.lcp_ms|floatformat:0|default:"N/A" }} ms</span>
                     </div>
                 </div>
             </div>
-            <!-- Diagnostics (Collapsible) -->
-            <div class="accordion mb-4" id="mobileDiagnostics">
-                <div class="accordion-item">
-                    <h2 class="accordion-header" id="headingDiagnosticsM">
-                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseDiagnosticsM" aria-expanded="false" aria-controls="collapseDiagnosticsM">
-                            Diagnostics
-                        </button>
-                    </h2>
-                    <div id="collapseDiagnosticsM" class="accordion-collapse collapse" aria-labelledby="headingDiagnosticsM" data-bs-parent="#mobileDiagnostics">
-                        <div class="accordion-body">
-                            {% for key, audit in mobile_lhr.audits.items %}
-                                {% if audit.score is None and audit.description %}
-                                    <div class="mb-3">
-                                        <h6>{{ audit.title }}</h6>
-                                        <p class="mb-1">{{ audit.description }}</p>
-                                        {% if audit.details and audit.details.items %}
-                                            <pre class="bg-light p-2 small">{{ audit.details.items|safe }}</pre>
-                                        {% endif %}
-                                    </div>
-                                {% endif %}
-                            {% empty %}
-                                <div class="text-muted">No diagnostics found.</div>
-                            {% endfor %}
-                        </div>
+            <div class="col-6 col-md-2">
+                <div class="card text-center border-success">
+                    <div class="card-body p-2">
+                        <h6 class="card-title mb-1">FID</h6>
+                        <span class="fw-bold">{{ field_metrics.fid_ms|floatformat:0|default:"N/A" }} ms</span>
                     </div>
                 </div>
             </div>
+            <div class="col-6 col-md-2">
+                <div class="card text-center border-success">
+                    <div class="card-body p-2">
+                        <h6 class="card-title mb-1">INP</h6>
+                        <span class="fw-bold">{{ field_metrics.inp_ms|floatformat:0|default:"N/A" }} ms</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-2">
+                <div class="card text-center border-warning">
+                    <div class="card-body p-2">
+                        <h6 class="card-title mb-1">CLS</h6>
+                        <span class="fw-bold">{{ field_metrics.cls|floatformat:2|default:"N/A" }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-2">
+                <div class="card text-center border-secondary">
+                    <div class="card-body p-2">
+                        <h6 class="card-title mb-1">TTFB</h6>
+                        <span class="fw-bold">{{ field_metrics.ttfb_ms|floatformat:0|default:"N/A" }} ms</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="mt-2">
+            <span class="badge bg-secondary">Overall: {{ field_metrics.overall_category|default:"N/A" }}</span>
+        </div>
         {% else %}
-            <div class="alert alert-warning">No mobile report data available.</div>
+        <div class="alert alert-warning">No real-user field data available for this page.</div>
         {% endif %}
     </div>
-    <!-- Desktop Report Tab -->
-    <div class="tab-pane fade" id="desktop" role="tabpanel">
-        {% if desktop_lhr %}
-            <!-- Radar Chart for Category Scores -->
-            <div class="mb-4">
-                <canvas id="desktopCategoryScoresChart" height="180"></canvas>
-            </div>
-            <div class="row mb-4">
-                <!-- Score Cards -->
-                <div class="col-md-3 mb-3">
-                    <div class="card text-center shadow-sm">
-                        <div class="card-body">
-                            <h6 class="card-title">Performance</h6>
-                            <span class="display-6 fw-bold text-success">{{ desktop_lhr.categories.performance.score|floatformat:2|default:"N/A" }}</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3 mb-3">
-                    <div class="card text-center shadow-sm">
-                        <div class="card-body">
-                            <h6 class="card-title">Accessibility</h6>
-                            <span class="display-6 fw-bold text-primary">{{ desktop_lhr.categories.accessibility.score|floatformat:2|default:"N/A" }}</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3 mb-3">
-                    <div class="card text-center shadow-sm">
-                        <div class="card-body">
-                            <h6 class="card-title">Best Practices</h6>
-                            <span class="display-6 fw-bold text-info">{{ desktop_lhr.categories.bestPractices.score|floatformat:2|default:"N/A" }}</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3 mb-3">
-                    <div class="card text-center shadow-sm">
-                        <div class="card-body">
-                            <h6 class="card-title">SEO</h6>
-                            <span class="display-6 fw-bold text-warning">{{ desktop_lhr.categories.seo.score|floatformat:2|default:"N/A" }}</span>
-                        </div>
+
+    <!-- Lab Metrics (Lighthouse) -->
+    <div class="mb-4">
+        <h4>Lab Metrics (Lighthouse)</h4>
+        {% if lab_metrics %}
+        <div class="row g-2">
+            <div class="col-6 col-md-2">
+                <div class="card text-center border-info">
+                    <div class="card-body p-2">
+                        <h6 class="card-title mb-1">FCP</h6>
+                        <span class="fw-bold">{{ lab_metrics.fcp_s|floatformat:2|default:"N/A" }} s</span>
                     </div>
                 </div>
             </div>
-            <!-- Bar Chart for Core Web Vitals -->
-            <div class="mb-4">
-                <canvas id="desktopVitalsBarChart" height="120"></canvas>
-            </div>
-            <!-- Core Web Vitals Cards -->
-            <div class="row mb-4">
-                {% with audits=desktop_lhr.audits %}
-                {% for metric_str in metrics %}
-                {% with parts=metric_str|split:',' %}
-                <div class="col-md-3 mb-3">
-                    <div class="card text-center">
-                        <div class="card-body">
-                            <h6 class="card-title">{{ parts.1 }}
-                                <i class="bi bi-info-circle" data-bs-toggle="tooltip" title="{{ parts.3 }}"></i>
-                            </h6>
-                            {% with value=audits|getitem:parts.0 %}
-                                <span class="fw-bold badge bg-{{ parts.2 }}">{{ value.displayValue|default:"N/A" }}</span>
-                            {% endwith %}
-                        </div>
-                    </div>
-                </div>
-                {% endwith %}
-                {% endfor %}
-                {% endwith %}
-            </div>
-            <!-- Opportunities (Collapsible) -->
-            <div class="accordion mb-4" id="desktopOpportunities">
-                <div class="accordion-item">
-                    <h2 class="accordion-header" id="headingOpportunitiesD">
-                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOpportunitiesD" aria-expanded="true" aria-controls="collapseOpportunitiesD">
-                            Opportunities for Improvement
-                        </button>
-                    </h2>
-                    <div id="collapseOpportunitiesD" class="accordion-collapse collapse show" aria-labelledby="headingOpportunitiesD" data-bs-parent="#desktopOpportunities">
-                        <div class="accordion-body">
-                            {% for key, audit in desktop_lhr.audits.items %}
-                                {% if audit.score is not None and audit.score < 1 and audit.scoreDisplayMode == 'numeric' %}
-                                    <div class="mb-3">
-                                        <h6>{{ audit.title }}</h6>
-                                        <p class="mb-1">{{ audit.description }}</p>
-                                        {% if audit.details and audit.details.items %}
-                                            <pre class="bg-light p-2 small">{{ audit.details.items|safe }}</pre>
-                                        {% endif %}
-                                    </div>
-                                {% endif %}
-                            {% empty %}
-                                <div class="text-muted">No opportunities found.</div>
-                            {% endfor %}
-                        </div>
+            <div class="col-6 col-md-2">
+                <div class="card text-center border-primary">
+                    <div class="card-body p-2">
+                        <h6 class="card-title mb-1">LCP</h6>
+                        <span class="fw-bold">{{ lab_metrics.lcp_s|floatformat:2|default:"N/A" }} s</span>
                     </div>
                 </div>
             </div>
-            <!-- Diagnostics (Collapsible) -->
-            <div class="accordion mb-4" id="desktopDiagnostics">
-                <div class="accordion-item">
-                    <h2 class="accordion-header" id="headingDiagnosticsD">
-                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseDiagnosticsD" aria-expanded="false" aria-controls="collapseDiagnosticsD">
-                            Diagnostics
-                        </button>
-                    </h2>
-                    <div id="collapseDiagnosticsD" class="accordion-collapse collapse" aria-labelledby="headingDiagnosticsD" data-bs-parent="#desktopDiagnostics">
-                        <div class="accordion-body">
-                            {% for key, audit in desktop_lhr.audits.items %}
-                                {% if audit.score is None and audit.description %}
-                                    <div class="mb-3">
-                                        <h6>{{ audit.title }}</h6>
-                                        <p class="mb-1">{{ audit.description }}</p>
-                                        {% if audit.details and audit.details.items %}
-                                            <pre class="bg-light p-2 small">{{ audit.details.items|safe }}</pre>
-                                        {% endif %}
-                                    </div>
-                                {% endif %}
-                            {% empty %}
-                                <div class="text-muted">No diagnostics found.</div>
-                            {% endfor %}
-                        </div>
+            <div class="col-6 col-md-2">
+                <div class="card text-center border-success">
+                    <div class="card-body p-2">
+                        <h6 class="card-title mb-1">Speed Index</h6>
+                        <span class="fw-bold">{{ lab_metrics.speed_index_s|floatformat:2|default:"N/A" }} s</span>
                     </div>
                 </div>
             </div>
+            <div class="col-6 col-md-2">
+                <div class="card text-center border-success">
+                    <div class="card-body p-2">
+                        <h6 class="card-title mb-1">TTI</h6>
+                        <span class="fw-bold">{{ lab_metrics.tti_s|floatformat:2|default:"N/A" }} s</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-2">
+                <div class="card text-center border-warning">
+                    <div class="card-body p-2">
+                        <h6 class="card-title mb-1">TBT</h6>
+                        <span class="fw-bold">{{ lab_metrics.tbt_ms|floatformat:0|default:"N/A" }} ms</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-2">
+                <div class="card text-center border-warning">
+                    <div class="card-body p-2">
+                        <h6 class="card-title mb-1">CLS</h6>
+                        <span class="fw-bold">{{ lab_metrics.cls|floatformat:2|default:"N/A" }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="mt-2">
+            <span class="badge bg-success">Performance Score: {{ lab_metrics.performance_score|mul:100|floatformat:0|default:"N/A" }}</span>
+        </div>
         {% else %}
-            <div class="alert alert-warning">No desktop report data available.</div>
+        <div class="alert alert-warning">No lab metrics available for this page.</div>
+        {% endif %}
+    </div>
+
+    <!-- Audits Section -->
+    <div class="mb-4">
+        <h4>Audits</h4>
+        {% if audits %}
+        {% regroup audits by category as audit_groups %}
+        <div class="accordion" id="auditAccordion">
+            {% for group in audit_groups %}
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="heading-{{ group.grouper }}">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ group.grouper }}" aria-expanded="false" aria-controls="collapse-{{ group.grouper }}">
+                        {{ group.grouper|title }}
+                    </button>
+                </h2>
+                <div id="collapse-{{ group.grouper }}" class="accordion-collapse collapse" aria-labelledby="heading-{{ group.grouper }}" data-bs-parent="#auditAccordion">
+                    <div class="accordion-body">
+                        <ul class="list-group">
+                        {% for audit in group.list %}
+                            <li class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>{{ audit.title }}</strong>
+                                        <span class="badge bg-light text-dark ms-2">{{ audit.audit_key }}</span>
+                                        {% if audit.score is not None %}
+                                            {% if audit.score >= 0.9 %}<span class="badge bg-success ms-2">Pass</span>{% elif audit.score >= 0.5 %}<span class="badge bg-warning ms-2">Needs Improvement</span>{% else %}<span class="badge bg-danger ms-2">Fail</span>{% endif %}
+                                        {% endif %}
+                                    </div>
+                                    <span class="small text-muted">{{ audit.score_display_mode|default:"" }}</span>
+                                </div>
+                                <div class="small text-muted mb-1">{{ audit.description|escape }}</div>
+                                {% if audit.display_value %}
+                                    <div class="mb-1"><span class="badge bg-info">{{ audit.display_value|escape }}</span></div>
+                                {% endif %}
+                                {% if audit.details %}
+                                    <details>
+                                        <summary>Details</summary>
+                                        <pre class="bg-light p-2 small">{{ audit.details }}</pre>
+                                    </details>
+                                {% endif %}
+                            </li>
+                        {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="alert alert-info">No audits available for this report.</div>
         {% endif %}
     </div>
 </div>
-{% endwith %}
-{% endwith %}
-{% endblock %}
-
-{% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Tooltips
-    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    tooltipTriggerList.forEach(function (tooltipTriggerEl) {
-        new bootstrap.Tooltip(tooltipTriggerEl);
-    });
-    // Radar Chart for Mobile
-    {% if mobile_lhr %}
-    new Chart(document.getElementById('mobileCategoryScoresChart').getContext('2d'), {
-        type: 'radar',
-        data: {
-            labels: ['Performance', 'Accessibility', 'Best Practices', 'SEO'],
-            datasets: [{
-                label: 'Category Scores',
-                data: [
-                    {{ mobile_lhr.categories.performance.score|default:0|floatformat:'2' }},
-                    {{ mobile_lhr.categories.accessibility.score|default:0|floatformat:'2' }},
-                    {{ mobile_lhr.categories.bestPractices.score|default:0|floatformat:'2' }},
-                    {{ mobile_lhr.categories.seo.score|default:0|floatformat:'2' }}
-                ],
-                backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                borderColor: 'rgba(54, 162, 235, 1)',
-                pointBackgroundColor: 'rgba(54, 162, 235, 1)'
-            }]
-        },
-        options: {scales: {r: {beginAtZero: true, max: 1}}}
-    });
-    // Bar Chart for Mobile Vitals
-    new Chart(document.getElementById('mobileVitalsBarChart').getContext('2d'), {
-        type: 'bar',
-        data: {
-            labels: ['FCP', 'LCP', 'CLS', 'INP'],
-            datasets: [{
-                label: 'Core Web Vitals',
-                data: [
-                    {% with audits=mobile_lhr.audits %}
-                    {% with fcp=audits|getitem:"first-contentful-paint" %}
-                        {{ fcp.numericValue|default:0 }},
-                    {% endwith %}
-                    {% with lcp=audits|getitem:"largest-contentful-paint" %}
-                        {{ lcp.numericValue|default:0 }},
-                    {% endwith %}
-                    {% with cls=audits|getitem:"cumulative-layout-shift" %}
-                        {{ cls.numericValue|default:0 }},
-                    {% endwith %}
-                    {% with inp=audits|getitem:"interaction-to-next-paint" %}
-                        {{ inp.numericValue|default:0 }}
-                    {% endwith %}
-                    {% endwith %}
-                ],
-                backgroundColor: [
-                    'rgba(54, 162, 235, 0.7)',
-                    'rgba(255, 206, 86, 0.7)',
-                    'rgba(75, 192, 192, 0.7)',
-                    'rgba(153, 102, 255, 0.7)'
-                ]
-            }]
-        },
-        options: {indexAxis: 'y'}
-    });
-    {% endif %}
-    // Radar Chart for Desktop
-    {% if desktop_lhr %}
-    new Chart(document.getElementById('desktopCategoryScoresChart').getContext('2d'), {
-        type: 'radar',
-        data: {
-            labels: ['Performance', 'Accessibility', 'Best Practices', 'SEO'],
-            datasets: [{
-                label: 'Category Scores',
-                data: [
-                    {{ desktop_lhr.categories.performance.score|default:0|floatformat:'2' }},
-                    {{ desktop_lhr.categories.accessibility.score|default:0|floatformat:'2' }},
-                    {{ desktop_lhr.categories.bestPractices.score|default:0|floatformat:'2' }},
-                    {{ desktop_lhr.categories.seo.score|default:0|floatformat:'2' }}
-                ],
-                backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                borderColor: 'rgba(255, 99, 132, 1)',
-                pointBackgroundColor: 'rgba(255, 99, 132, 1)'
-            }]
-        },
-        options: {scales: {r: {beginAtZero: true, max: 1}}}
-    });
-    // Bar Chart for Desktop Vitals
-    new Chart(document.getElementById('desktopVitalsBarChart').getContext('2d'), {
-        type: 'bar',
-        data: {
-            labels: ['FCP', 'LCP', 'CLS', 'INP'],
-            datasets: [{
-                label: 'Core Web Vitals',
-                data: [
-                    {% with audits=desktop_lhr.audits %}
-                    {% with fcp=audits|getitem:"first-contentful-paint" %}
-                        {{ fcp.numericValue|default:0 }},
-                    {% endwith %}
-                    {% with lcp=audits|getitem:"largest-contentful-paint" %}
-                        {{ lcp.numericValue|default:0 }},
-                    {% endwith %}
-                    {% with cls=audits|getitem:"cumulative-layout-shift" %}
-                        {{ cls.numericValue|default:0 }},
-                    {% endwith %}
-                    {% with inp=audits|getitem:"interaction-to-next-paint" %}
-                        {{ inp.numericValue|default:0 }}
-                    {% endwith %}
-                    {% endwith %}
-                ],
-                backgroundColor: [
-                    'rgba(255, 99, 132, 0.7)',
-                    'rgba(255, 206, 86, 0.7)',
-                    'rgba(75, 192, 192, 0.7)',
-                    'rgba(153, 102, 255, 0.7)'
-                ]
-            }]
-        },
-        options: {indexAxis: 'y'}
-    });
-    {% endif %}
-});
-</script>
 {% endblock %} 

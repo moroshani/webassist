@@ -1,10 +1,17 @@
 import os
 from pathlib import Path
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-your-secret-key-here')
+def get_env_setting(setting_name):
+    value = os.getenv(setting_name)
+    if not value:
+        raise ImproperlyConfigured(f"Set the {setting_name} environment variable.")
+    return value
+
+SECRET_KEY = get_env_setting('DJANGO_SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DJANGO_DEBUG', 'True') == 'True'
@@ -83,7 +90,8 @@ STATIC_URL = 'static/'
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
 # PageSpeed Insights API Key
-PSI_API_KEY = os.getenv('PSI_API_KEY', 'AIzaSyCTGTYjk95BRnFUOVJmCASsp3FYLw4vZow')
+PSI_API_KEY = get_env_setting('PSI_API_KEY')
+print("Loaded PSI_API_KEY:", repr(PSI_API_KEY))
 
 # Security Settings
 if not DEBUG:
@@ -97,4 +105,51 @@ if not DEBUG:
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
 
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField' 
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Logging configuration
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '[{asctime}] {levelname} {name} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+        'file': {
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'webassist.log'),
+            'formatter': 'verbose',
+            'level': 'WARNING',
+        },
+    },
+    'root': {
+        'handlers': ['console', 'file'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+    },
+}
+
+# Sentry integration example (uncomment and set DSN to enable)
+# import sentry_sdk
+# sentry_sdk.init(
+#     dsn="https://your-sentry-dsn@sentry.io/project-id",
+#     traces_sample_rate=1.0,
+#     send_default_pii=True
+# ) 

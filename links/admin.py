@@ -1,32 +1,34 @@
 from django.contrib import admin
-from .models import Link, PSIReport
+from .models import Link, PSIReport, Page, FieldMetrics, LabMetrics, CategoryScores, Audit
 
 # Custom admin actions
 
 def clear_links(modeladmin, request, queryset):
     Link.objects.all().delete()
-clear_links.short_description = "Delete all links and their reports"
+clear_links.short_description = "Delete all links"
 
-
-def clear_reports(modeladmin, request, queryset):
-    PSIReport.objects.all().delete()
-clear_reports.short_description = "Delete all PSI reports (keep links)"
-
-
-def clear_reports_for_links(modeladmin, request, queryset):
+def export_links_csv(modeladmin, request, queryset):
+    import csv
+    from django.http import HttpResponse
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename=links.csv'
+    writer = csv.writer(response)
+    writer.writerow(['id', 'title', 'url', 'description', 'created_at', 'updated_at'])
     for link in queryset:
-        link.psi_reports.all().delete()
-clear_reports_for_links.short_description = "Delete all reports for selected links"
-
+        writer.writerow([link.id, link.title, link.url, link.description, link.created_at, link.updated_at])
+    return response
+export_links_csv.short_description = "Export selected links as CSV"
 
 class LinkAdmin(admin.ModelAdmin):
-    actions = [clear_links, clear_reports, clear_reports_for_links]
     list_display = ('title', 'url', 'description', 'created_at', 'updated_at')
-
+    search_fields = ('title', 'url', 'description')
+    list_filter = ('created_at', 'updated_at')
+    actions = [clear_links, export_links_csv]
 
 class PSIReportAdmin(admin.ModelAdmin):
-    actions = [clear_reports]
-    list_display = ('link', 'created_at')
+    list_display = ('page', 'strategy', 'fetch_time')
+    search_fields = ('page__url', 'strategy')
+    list_filter = ('strategy', 'fetch_time')
 
 try:
     admin.site.unregister(Link)
@@ -37,4 +39,9 @@ try:
 except admin.sites.NotRegistered:
     pass
 admin.site.register(Link, LinkAdmin)
-admin.site.register(PSIReport, PSIReportAdmin) 
+admin.site.register(Page)
+admin.site.register(PSIReport, PSIReportAdmin)
+admin.site.register(FieldMetrics)
+admin.site.register(LabMetrics)
+admin.site.register(CategoryScores)
+admin.site.register(Audit) 
