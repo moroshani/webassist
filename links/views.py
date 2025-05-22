@@ -10,6 +10,12 @@ from django.views.decorators.csrf import csrf_exempt
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 import csv
 import io
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.contrib.auth.forms import PasswordChangeForm
+from django.contrib.auth import update_session_auth_hash
+from django.contrib.auth.models import User
+from django.shortcuts import redirect
 
 
 class LinkFilter(FilterSet):
@@ -25,8 +31,9 @@ def home(request):
     return render(request, 'links/home.html')
 
 
+@login_required
 def link_list(request):
-    links = Link.objects.all()
+    links = Link.objects.filter(user=request.user)
     link_filter = LinkFilter(request.GET, queryset=links)
     paginator = Paginator(link_filter.qs, 10)  # 10 links per page
     page_number = request.GET.get('page')
@@ -50,11 +57,12 @@ def link_list(request):
     })
 
 
+@login_required
 @require_POST
 def fetch_psi_report(request, link_id):
-    link = get_object_or_404(Link, id=link_id)
+    link = get_object_or_404(Link, id=link_id, user=request.user)
     try:
-        group, mobile_report, desktop_report = PSIService.fetch_and_store_report_group(link.url)
+        group, mobile_report, desktop_report = PSIService.fetch_and_store_report_group(link.url, user=request.user)
         return JsonResponse({
             'status': 'success',
             'message': 'PSI reports fetched and stored successfully',
@@ -69,20 +77,19 @@ def fetch_psi_report(request, link_id):
         }, status=400)
 
 
+@login_required
 @require_POST
 def delete_psi_report(request, report_id):
-    try:
-        report = get_object_or_404(PSIReport, id=report_id)
-        report.delete()
-        return JsonResponse({'status': 'success'})
-    except Exception as e:
-        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+    report = get_object_or_404(PSIReport, id=report_id, user=request.user)
+    report.delete()
+    return JsonResponse({'status': 'success'})
 
 
+@login_required
 def psi_reports_list(request, link_id):
-    link = get_object_or_404(Link, id=link_id)
-    page = Page.objects.filter(url=link.url).first()
-    reports = page.psi_reports.all() if page else PSIReport.objects.none()
+    link = get_object_or_404(Link, id=link_id, user=request.user)
+    page = Page.objects.filter(url=link.url, user=request.user).first()
+    reports = page.psi_reports.filter(user=request.user) if page else PSIReport.objects.none()
     mobile_reports = reports.filter(strategy='mobile')
     desktop_reports = reports.filter(strategy='desktop')
     paginator = Paginator(reports, 10)  # 10 reports per page
@@ -102,8 +109,9 @@ def psi_reports_list(request, link_id):
     })
 
 
+@login_required
 def psi_report_detail(request, report_id):
-    report = get_object_or_404(PSIReport, id=report_id)
+    report = get_object_or_404(PSIReport, id=report_id, user=request.user)
     field_metrics = getattr(report, 'field_metrics', None)
     lab_metrics = getattr(report, 'lab_metrics', None)
     category_scores = getattr(report, 'category_scores', None)
@@ -117,15 +125,13 @@ def psi_report_detail(request, report_id):
     })
 
 
+@login_required
 @require_POST
 def bulk_delete_links(request):
-    try:
-        data = json.loads(request.body)
-        ids = data.get('ids', [])
-        Link.objects.filter(id__in=ids).delete()
-        return JsonResponse({'status': 'success'})
-    except Exception as e:
-        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+    data = json.loads(request.body)
+    ids = data.get('ids', [])
+    Link.objects.filter(id__in=ids, user=request.user).delete()
+    return JsonResponse({'status': 'success'})
 
 
 def export_psi_reports(request, link_id):
@@ -184,19 +190,17 @@ def export_links_csv(request):
     return response
 
 
+@login_required
 @require_POST
 def delete_psi_report_group(request, group_id):
-    try:
-        group = get_object_or_404(PSIReportGroup, id=group_id)
-        group.delete()
-        return JsonResponse({'status': 'success'})
-    except Exception as e:
-        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+    group = get_object_or_404(PSIReportGroup, id=group_id, user=request.user)
+    group.delete()
+    return JsonResponse({'status': 'success'})
 
 
-@require_GET
+@login_required
 def export_links_json(request):
-    links = Link.objects.all().order_by('-created_at')
+    links = Link.objects.filter(user=request.user).order_by('-created_at')
     data = [
         {
             'id': link.id,
@@ -211,6 +215,7 @@ def export_links_json(request):
     return JsonResponse(data, safe=False)
 
 
+@login_required
 @csrf_exempt
 @require_POST
 def import_links_json(request):
@@ -227,9 +232,108 @@ def import_links_json(request):
                     defaults={
                         'title': entry.get('title', ''),
                         'description': entry.get('description', ''),
+                        'user': request.user,
                     }
                 )
                 created += 1
         return JsonResponse({'status': 'success', 'created': created})
     except Exception as e:
-        return JsonResponse({'status': 'error', 'message': str(e)}, status=400) 
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+
+@login_required
+def dashboard(request):
+    links = Link.objects.filter(user=request.user)
+    sites_data = []
+    for link in links:
+        last_psi = PSIReport.objects.filter(page__url=link.url, user=request.user).order_by('-fetch_time').first()
+        # Placeholder values for future features
+        ssl_status = None
+        ssl_last_checked = None
+        uptime_status = None
+        uptime_last_checked = None
+        sec_headers_status = None
+        sec_headers_last_checked = None
+        sites_data.append({
+            'link': link,
+            'psi_status': last_psi.raw_json['lighthouseResult']['categories']['performance']['score'] if last_psi and last_psi.raw_json else None,
+            'psi_last_checked': last_psi.fetch_time if last_psi else None,
+            'ssl_status': ssl_status,
+            'ssl_last_checked': ssl_last_checked,
+            'uptime_status': uptime_status,
+            'uptime_last_checked': uptime_last_checked,
+            'sec_headers_status': sec_headers_status,
+            'sec_headers_last_checked': sec_headers_last_checked,
+        })
+    return render(request, 'links/dashboard.html', {'sites_data': sites_data})
+
+
+@login_required
+def site_detail(request, link_id):
+    link = get_object_or_404(Link, id=link_id, user=request.user)
+    psi_reports = PSIReport.objects.filter(page__url=link.url, user=request.user).order_by('-fetch_time')
+    # Placeholders for future features
+    ssl_results = None
+    uptime_results = None
+    sec_headers_results = None
+    return render(request, 'links/site_detail.html', {
+        'link': link,
+        'psi_reports': psi_reports,
+        'ssl_results': ssl_results,
+        'uptime_results': uptime_results,
+        'sec_headers_results': sec_headers_results,
+    })
+
+
+@login_required
+@require_POST
+def add_site(request):
+    data = json.loads(request.body)
+    url = data.get('url')
+    title = data.get('title')
+    description = data.get('description', '')
+    if not url or not title:
+        return JsonResponse({'status': 'error', 'message': 'Title and URL are required.'}, status=400)
+    link, created = Link.objects.get_or_create(url=url, user=request.user, defaults={'title': title, 'description': description})
+    if created:
+        messages.success(request, f'Site "{title}" added successfully!')
+        return JsonResponse({'status': 'success', 'link_id': link.id, 'title': link.title, 'url': link.url})
+    else:
+        return JsonResponse({'status': 'error', 'message': 'Site already exists.'}, status=400)
+
+
+@login_required
+def profile(request):
+    user = request.user
+    password_form = PasswordChangeForm(user)
+    email_updated = False
+    password_updated = False
+    if request.method == 'POST':
+        if 'update_email' in request.POST:
+            new_email = request.POST.get('email')
+            if new_email and new_email != user.email:
+                user.email = new_email
+                user.save()
+                email_updated = True
+                messages.success(request, 'Email updated successfully.')
+        elif 'update_password' in request.POST:
+            password_form = PasswordChangeForm(user, request.POST)
+            if password_form.is_valid():
+                user = password_form.save()
+                update_session_auth_hash(request, user)
+                password_updated = True
+                messages.success(request, 'Password updated successfully.')
+        elif 'delete_account' in request.POST:
+            user.delete()
+            messages.success(request, 'Your account has been deleted.')
+            return redirect('home')
+    return render(request, 'links/profile.html', {
+        'user': user,
+        'password_form': password_form,
+        'email_updated': email_updated,
+        'password_updated': password_updated,
+    })
+
+
+def root_redirect(request):
+    return redirect('dashboard') 

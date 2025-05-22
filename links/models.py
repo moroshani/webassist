@@ -1,9 +1,11 @@
 from django.db import models
+from django.contrib.auth.models import User
 from typing import Optional
 
 
 class Link(models.Model):
     """A website link tracked by the user."""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='links')
     title: str = models.CharField(max_length=255)
     url: str = models.URLField(unique=True)
     description: str = models.TextField(blank=True)
@@ -20,6 +22,7 @@ class Link(models.Model):
 
 class Page(models.Model):
     """A page for which PSI reports are tracked."""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='pages')
     url: str = models.URLField(unique=True)
     created_at: models.DateTimeField = models.DateTimeField(auto_now_add=True)
 
@@ -30,6 +33,7 @@ class Page(models.Model):
 
 class PSIReportGroup(models.Model):
     """A group of PSI reports (mobile/desktop) for a page at a specific time."""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='psi_report_groups')
     page: Page = models.ForeignKey(Page, on_delete=models.CASCADE, related_name='psi_report_groups')
     fetch_time: models.DateTimeField = models.DateTimeField()
 
@@ -40,6 +44,7 @@ class PSIReportGroup(models.Model):
 
 class PSIReport(models.Model):
     """A single PSI report (mobile or desktop) for a page."""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='psi_reports')
     group: Optional[PSIReportGroup] = models.ForeignKey('PSIReportGroup', on_delete=models.CASCADE, related_name='reports', null=True, blank=True)
     page: Optional[Page] = models.ForeignKey(Page, on_delete=models.CASCADE, related_name='psi_reports', blank=True, null=True)
     fetch_time: Optional[models.DateTimeField] = models.DateTimeField(blank=True, null=True)

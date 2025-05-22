@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block title %}Profile | WebAssist{% endblock %}
+{% block content %}
+<h1 class="mb-4"><i class="bi bi-person-circle"></i> My Profile</h1>
+<div class="row">
+  <div class="col-md-6">
+    <div class="card mb-4">
+      <div class="card-header bg-primary text-white"><i class="bi bi-envelope"></i> Update Email</div>
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label for="email" class="form-label">Email address</label>
+            <input type="email" class="form-control" id="email" name="email" value="{{ user.email }}" required>
+          </div>
+          <button type="submit" name="update_email" class="btn btn-primary">Update Email</button>
+        </form>
+      </div>
+    </div>
+    <div class="card mb-4">
+      <div class="card-header bg-secondary text-white"><i class="bi bi-key"></i> Change Password</div>
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+          {{ password_form.as_p }}
+          <button type="submit" name="update_password" class="btn btn-secondary">Change Password</button>
+        </form>
+      </div>
+    </div>
+    <div class="card mb-4">
+      <div class="card-header bg-danger text-white"><i class="bi bi-trash"></i> Delete Account</div>
+      <div class="card-body">
+        <form method="post" onsubmit="return confirm('Are you sure you want to delete your account? This cannot be undone.');">
+          {% csrf_token %}
+          <button type="submit" name="delete_account" class="btn btn-danger">Delete My Account</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card mb-4">
+      <div class="card-header bg-info text-white"><i class="bi bi-shield-lock"></i> Social Accounts</div>
+      <div class="card-body">
+        <p>Manage your social logins (Google, GitHub) from the <a href="/accounts/social/connections/">social account connections</a> page.</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} 

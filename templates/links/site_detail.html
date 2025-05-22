@@ -1,0 +1,156 @@
+{% extends 'base.html' %}
+{% block title %}{{ link.title }} | Site Details | WebAssist{% endblock %}
+{% block content %}
+<h1 class="mb-4"><i class="bi bi-link-45deg"></i> {{ link.title }} <small class="text-muted">({{ link.url }})</small></h1>
+<div class="row">
+  <div class="col-lg-8">
+    <div class="card mb-4">
+      <div class="card-header bg-primary text-white">
+        <i class="bi bi-bar-chart"></i> Feature Overview
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Feature</th>
+                <th>Last Result</th>
+                <th>Last Checked</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><i class="bi bi-speedometer2"></i> PageSpeed Insights</td>
+                <td id="psi-score">
+                  {% if psi_reports %}
+                    <span class="badge {% if psi_reports.0.raw_json.lighthouseResult.categories.performance.score >= 0.9 %}bg-success{% elif psi_reports.0.raw_json.lighthouseResult.categories.performance.score >= 0.5 %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                      {{ psi_reports.0.raw_json.lighthouseResult.categories.performance.score|floatformat:2 }}
+                    </span>
+                  {% else %}
+                    <span class="text-muted">No data</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if psi_reports %}
+                    {{ psi_reports.0.fetch_time|date:'Y-m-d H:i' }}
+                  {% else %}
+                    <span class="text-muted">Never</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <a href="#psi-history" class="btn btn-outline-primary btn-sm" data-bs-toggle="collapse"><i class="bi bi-clock-history"></i> History</a>
+                  <button class="btn btn-outline-success btn-sm" onclick="rescanPSIDetail({{ link.id }})" id="rescan-btn"><i class="bi bi-arrow-repeat"></i> Re-scan</button>
+                </td>
+              </tr>
+              <!-- Placeholder rows for future features (SSL, Uptime, etc.) -->
+              <tr>
+                <td><i class="bi bi-shield-lock"></i> SSL/TLS</td>
+                <td><span class="badge bg-secondary">Coming soon</span></td>
+                <td><span class="text-muted">—</span></td>
+                <td><button class="btn btn-outline-secondary btn-sm" disabled><i class="bi bi-clock-history"></i> History</button></td>
+              </tr>
+              <tr>
+                <td><i class="bi bi-activity"></i> Uptime</td>
+                <td><span class="badge bg-secondary">Coming soon</span></td>
+                <td><span class="text-muted">—</span></td>
+                <td><button class="btn btn-outline-secondary btn-sm" disabled><i class="bi bi-clock-history"></i> History</button></td>
+              </tr>
+              <tr>
+                <td><i class="bi bi-shield-check"></i> Security Headers</td>
+                <td><span class="badge bg-secondary">Coming soon</span></td>
+                <td><span class="text-muted">—</span></td>
+                <td><button class="btn btn-outline-secondary btn-sm" disabled><i class="bi bi-clock-history"></i> History</button></td>
+              </tr>
+              <!-- Add more features as needed -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="collapse" id="psi-history">
+      <div class="card card-body">
+        <h5><i class="bi bi-clock-history"></i> PSI History</h5>
+        {% if psi_reports %}
+        <div class="table-responsive">
+          <table class="table table-sm table-striped">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Performance</th>
+                <th>Strategy</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for report in psi_reports %}
+              <tr>
+                <td>{{ report.fetch_time|date:'Y-m-d H:i' }}</td>
+                <td>
+                  {% if report.raw_json.lighthouseResult.categories.performance.score %}
+                    <span class="badge {% if report.raw_json.lighthouseResult.categories.performance.score >= 0.9 %}bg-success{% elif report.raw_json.lighthouseResult.categories.performance.score >= 0.5 %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                      {{ report.raw_json.lighthouseResult.categories.performance.score|floatformat:2 }}
+                    </span>
+                  {% else %}
+                    <span class="text-muted">-</span>
+                  {% endif %}
+                </td>
+                <td>{{ report.strategy|title }}</td>
+                <td><a href="{% url 'psi_report_detail' report.id %}" class="btn btn-outline-info btn-sm"><i class="bi bi-search"></i> Details</a></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="alert alert-info">No PSI history yet for this site.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="card mb-4">
+      <div class="card-header bg-secondary text-white">
+        <i class="bi bi-gear"></i> Site Actions
+      </div>
+      <div class="card-body">
+        <a href="{% url 'fetch_psi_report' link.id %}" class="btn btn-success w-100 mb-2"><i class="bi bi-arrow-repeat"></i> Run PSI Scan</a>
+        <a href="{% url 'link_list' %}" class="btn btn-outline-primary w-100 mb-2"><i class="bi bi-list"></i> Back to Sites</a>
+        <a href="{% url 'dashboard' %}" class="btn btn-outline-dark w-100"><i class="bi bi-speedometer2"></i> Dashboard</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function rescanPSIDetail(linkId) {
+  const btn = document.getElementById('rescan-btn');
+  const psiCell = document.getElementById('psi-score');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Scanning...';
+  fetch(`/sites/${linkId}/fetch-psi/`, {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': '{{ csrf_token }}',
+    },
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.status === 'success') {
+      location.reload(); // For now, reload to update PSI and history
+    } else {
+      psiCell.innerHTML = '<span class="text-danger">Error: ' + data.message + '</span>';
+    }
+  })
+  .catch(() => {
+    psiCell.innerHTML = '<span class="text-danger">Scan failed</span>';
+  })
+  .finally(() => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Re-scan';
+  });
+}
+</script>
+{% endblock %} 

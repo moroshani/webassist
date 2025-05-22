@@ -7,4 +7,5 @@ pytest-django
 coverage
 black
 isort
-mypy 
+mypy
+django-allauth 

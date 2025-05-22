@@ -37,15 +37,15 @@ class PSIService:
             raise Exception(f"Network error while fetching PSI report: {str(e)}")
 
     @classmethod
-    def fetch_and_store_report_group(cls, url):
+    def fetch_and_store_report_group(cls, url, user):
         """
         Fetch both mobile and desktop PSI reports, create a group, and store all relevant data.
         """
         fetch_time = timezone.now()
         # Get or create Page
-        page, _ = Page.objects.get_or_create(url=url)
+        page, _ = Page.objects.get_or_create(url=url, user=user)
         # Create group
-        group = PSIReportGroup.objects.create(page=page, fetch_time=fetch_time)
+        group = PSIReportGroup.objects.create(page=page, fetch_time=fetch_time, user=user)
         # Fetch and store mobile
         mobile_data = cls.fetch_report(url, 'mobile')
         mobile_report = PSIReport.objects.create(
@@ -53,7 +53,8 @@ class PSIService:
             page=page,
             fetch_time=fetch_time,
             strategy='mobile',
-            raw_json=mobile_data
+            raw_json=mobile_data,
+            user=user
         )
         # Fetch and store desktop
         desktop_data = cls.fetch_report(url, 'desktop')
@@ -62,7 +63,8 @@ class PSIService:
             page=page,
             fetch_time=fetch_time,
             strategy='desktop',
-            raw_json=desktop_data
+            raw_json=desktop_data,
+            user=user
         )
         # Store metrics and audits for both
         for psi_report, data in [(mobile_report, mobile_data), (desktop_report, desktop_data)]:

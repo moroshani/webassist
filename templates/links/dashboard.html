@@ -1,0 +1,176 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard | WebAssist{% endblock %}
+{% block content %}
+<h1 class="mb-4"><i class="bi bi-speedometer2"></i> Dashboard</h1>
+<div class="d-flex justify-content-end mb-3">
+  <button class="btn btn-success" onclick="openAddSiteModal()"><i class="bi bi-plus-circle"></i> Add Site</button>
+</div>
+<div class="card mb-4">
+  <div class="card-header bg-primary text-white">
+    <i class="bi bi-link-45deg"></i> My Sites
+    <a href="{% url 'link_list' %}" class="btn btn-light btn-sm float-end"><i class="bi bi-plus-circle"></i> Manage Sites</a>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Site</th>
+            <th>PSI Score</th>
+            <th>Last PSI Check</th>
+            <th>Status</th>
+            <th>SSL</th>
+            <th>Uptime</th>
+            <th>Security Headers</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for site in sites_data %}
+          <tr>
+            <td>
+              <a href="{% url 'site_detail' site.link.id %}"><strong>{{ site.link.title }}</strong></a><br>
+              <small class="text-muted">{{ site.link.url }}</small>
+            </td>
+            <td id="psi-score-{{ site.link.id }}">
+              {% if site.psi_status is not None %}
+                <span class="badge {% if site.psi_status >= 0.9 %}bg-success{% elif site.psi_status >= 0.5 %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                  {{ site.psi_status|floatformat:2 }}
+                </span>
+              {% else %}
+                <span class="text-muted">No data</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if site.psi_last_checked %}
+                {{ site.psi_last_checked|date:'Y-m-d H:i' }}
+              {% else %}
+                <span class="text-muted">Never</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if site.psi_status is not None %}
+                {% if site.psi_status >= 0.9 %}
+                  <span class="badge bg-success">Good</span>
+                {% elif site.psi_status >= 0.5 %}
+                  <span class="badge bg-warning text-dark">Average</span>
+                {% else %}
+                  <span class="badge bg-danger">Poor</span>
+                {% endif %}
+              {% else %}
+                <span class="badge bg-secondary">Unknown</span>
+              {% endif %}
+            </td>
+            <td>
+              <span class="badge bg-secondary">Coming soon</span><br><small class="text-muted">—</small>
+            </td>
+            <td>
+              <span class="badge bg-secondary">Coming soon</span><br><small class="text-muted">—</small>
+            </td>
+            <td>
+              <span class="badge bg-secondary">Coming soon</span><br><small class="text-muted">—</small>
+            </td>
+            <td>
+              <a href="{% url 'site_detail' site.link.id %}" class="btn btn-outline-primary btn-sm"><i class="bi bi-table"></i> Details</a>
+              <button class="btn btn-outline-success btn-sm" onclick="rescanPSI({{ site.link.id }})" id="rescan-btn-{{ site.link.id }}"><i class="bi bi-arrow-repeat"></i> Re-scan</button>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="8" class="text-center text-muted">No sites yet. <a href="{% url 'link_list' %}">Add your first site</a>!</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="addSiteModal" tabindex="-1" aria-labelledby="addSiteModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="addSiteModalLabel">Add New Site</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label for="addSiteTitle" class="form-label">Site Title</label>
+          <input type="text" class="form-control" id="addSiteTitle" required>
+        </div>
+        <div class="mb-3">
+          <label for="addSiteUrl" class="form-label">Site URL</label>
+          <input type="url" class="form-control" id="addSiteUrl" required>
+        </div>
+        <div class="mb-3">
+          <label for="addSiteDescription" class="form-label">Description (optional)</label>
+          <textarea class="form-control" id="addSiteDescription"></textarea>
+        </div>
+        <div class="text-danger" id="addSiteError"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="submitAddSiteForm()">Add Site</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openAddSiteModal() {
+  var modal = new bootstrap.Modal(document.getElementById('addSiteModal'));
+  modal.show();
+}
+function submitAddSiteForm() {
+  const url = document.getElementById('addSiteUrl').value;
+  const title = document.getElementById('addSiteTitle').value;
+  const description = document.getElementById('addSiteDescription').value;
+  fetch('{% url 'add_site' %}', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': '{{ csrf_token }}',
+    },
+    body: JSON.stringify({url: url, title: title, description: description})
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.status === 'success') {
+      location.reload();
+    } else {
+      document.getElementById('addSiteError').innerText = data.message;
+    }
+  });
+}
+function rescanPSI(linkId) {
+  const btn = document.getElementById('rescan-btn-' + linkId);
+  const psiCell = document.getElementById('psi-score-' + linkId);
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Scanning...';
+  fetch(`/sites/${linkId}/fetch-psi/`, {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': '{{ csrf_token }}',
+    },
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.status === 'success') {
+      // Optionally, fetch the new PSI score and update the cell
+      location.reload(); // For now, reload to update all data
+    } else {
+      psiCell.innerHTML = '<span class="text-danger">Error: ' + data.message + '</span>';
+    }
+  })
+  .catch(() => {
+    psiCell.innerHTML = '<span class="text-danger">Scan failed</span>';
+  })
+  .finally(() => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Re-scan';
+  });
+}
+</script>
+{% endblock %} 
