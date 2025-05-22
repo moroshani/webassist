@@ -1,7 +1,9 @@
-from django.test import TestCase
-from .models import Link
-from django.urls import reverse
 from django.contrib.auth import get_user_model
+from django.test import TestCase
+from django.urls import reverse
+
+from .models import Link
+
 
 class LinkModelTest(TestCase):
     def setUp(self):

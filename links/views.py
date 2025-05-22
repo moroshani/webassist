@@ -1,21 +1,22 @@
-from django.shortcuts import render, get_object_or_404
-from django_filters import FilterSet, CharFilter
-from django.http import JsonResponse, HttpResponse
-from django.template.loader import render_to_string
-from django.views.decorators.http import require_POST, require_GET
-from .models import Link, Page, PSIReport, PSIReportGroup
-from .services import PSIService
-import json
-from django.views.decorators.csrf import csrf_exempt
-from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 import csv
 import io
-from django.contrib.auth.decorators import login_required
+import json
+
 from django.contrib import messages
-from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth import update_session_auth_hash
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth.models import User
-from django.shortcuts import redirect
+from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
+from django.http import HttpResponse, JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import render_to_string
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_GET, require_POST
+from django_filters import CharFilter, FilterSet
+
+from .models import Link, Page, PSIReport, PSIReportGroup
+from .services import PSIService
 
 
 class LinkFilter(FilterSet):

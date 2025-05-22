@@ -1,7 +1,16 @@
 import requests
 from django.conf import settings
-from .models import Page, PSIReport, FieldMetrics, LabMetrics, CategoryScores, Audit, PSIReportGroup
 from django.utils import timezone
+
+from .models import (
+    Audit,
+    CategoryScores,
+    FieldMetrics,
+    LabMetrics,
+    Page,
+    PSIReport,
+    PSIReportGroup,
+)
 
 
 class PSIService:

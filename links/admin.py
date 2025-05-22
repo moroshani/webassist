@@ -1,5 +1,14 @@
 from django.contrib import admin
-from .models import Link, PSIReport, Page, FieldMetrics, LabMetrics, CategoryScores, Audit
+
+from .models import (
+    Audit,
+    CategoryScores,
+    FieldMetrics,
+    LabMetrics,
+    Link,
+    Page,
+    PSIReport,
+)
 
 # Custom admin actions
 
@@ -9,6 +18,7 @@ clear_links.short_description = "Delete all links"
 
 def export_links_csv(modeladmin, request, queryset):
     import csv
+
     from django.http import HttpResponse
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = 'attachment; filename=links.csv'
