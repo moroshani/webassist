@@ -6,7 +6,8 @@ from django.db import models
 
 class Link(models.Model):
     """A website link tracked by the user."""
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='links')
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="links")
     title: str = models.CharField(max_length=255)
     url: str = models.URLField(unique=True)
     description: str = models.TextField(blank=True)
@@ -18,12 +19,13 @@ class Link(models.Model):
         return self.title
 
     class Meta:
-        ordering = ['-created_at']
+        ordering = ["-created_at"]
 
 
 class Page(models.Model):
     """A page for which PSI reports are tracked."""
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='pages')
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="pages")
     url: str = models.URLField(unique=True)
     created_at: models.DateTimeField = models.DateTimeField(auto_now_add=True)
 
@@ -34,8 +36,13 @@ class Page(models.Model):
 
 class PSIReportGroup(models.Model):
     """A group of PSI reports (mobile/desktop) for a page at a specific time."""
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='psi_report_groups')
-    page: Page = models.ForeignKey(Page, on_delete=models.CASCADE, related_name='psi_report_groups')
+
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="psi_report_groups"
+    )
+    page: Page = models.ForeignKey(
+        Page, on_delete=models.CASCADE, related_name="psi_report_groups"
+    )
     fetch_time: models.DateTimeField = models.DateTimeField()
 
     def __str__(self) -> str:
@@ -45,11 +52,31 @@ class PSIReportGroup(models.Model):
 
 class PSIReport(models.Model):
     """A single PSI report (mobile or desktop) for a page."""
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='psi_reports')
-    group: Optional[PSIReportGroup] = models.ForeignKey('PSIReportGroup', on_delete=models.CASCADE, related_name='reports', null=True, blank=True)
-    page: Optional[Page] = models.ForeignKey(Page, on_delete=models.CASCADE, related_name='psi_reports', blank=True, null=True)
-    fetch_time: Optional[models.DateTimeField] = models.DateTimeField(blank=True, null=True)
-    strategy: Optional[str] = models.CharField(max_length=16, choices=[('mobile', 'Mobile'), ('desktop', 'Desktop')], blank=True, null=True)
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="psi_reports")
+    group: Optional[PSIReportGroup] = models.ForeignKey(
+        "PSIReportGroup",
+        on_delete=models.CASCADE,
+        related_name="reports",
+        null=True,
+        blank=True,
+    )
+    page: Optional[Page] = models.ForeignKey(
+        Page,
+        on_delete=models.CASCADE,
+        related_name="psi_reports",
+        blank=True,
+        null=True,
+    )
+    fetch_time: Optional[models.DateTimeField] = models.DateTimeField(
+        blank=True, null=True
+    )
+    strategy: Optional[str] = models.CharField(
+        max_length=16,
+        choices=[("mobile", "Mobile"), ("desktop", "Desktop")],
+        blank=True,
+        null=True,
+    )
     raw_json: Optional[dict] = models.JSONField(blank=True, null=True)
 
     def __str__(self) -> str:
@@ -57,12 +84,15 @@ class PSIReport(models.Model):
         return f"PSI Report for {self.page.url if self.page else 'Unknown'} - {self.fetch_time.strftime('%Y-%m-%d %H:%M') if self.fetch_time else 'No Date'}"
 
     class Meta:
-        ordering = ['-fetch_time']
+        ordering = ["-fetch_time"]
 
 
 class FieldMetrics(models.Model):
     """Field metrics from PSI (real user data)."""
-    psi_report: PSIReport = models.OneToOneField(PSIReport, on_delete=models.CASCADE, related_name='field_metrics')
+
+    psi_report: PSIReport = models.OneToOneField(
+        PSIReport, on_delete=models.CASCADE, related_name="field_metrics"
+    )
     fcp_ms: Optional[float] = models.FloatField(null=True)
     lcp_ms: Optional[float] = models.FloatField(null=True)
     fid_ms: Optional[float] = models.FloatField(null=True)
@@ -75,7 +105,10 @@ class FieldMetrics(models.Model):
 
 class LabMetrics(models.Model):
     """Lab metrics from PSI (simulated data)."""
-    psi_report: PSIReport = models.OneToOneField(PSIReport, on_delete=models.CASCADE, related_name='lab_metrics')
+
+    psi_report: PSIReport = models.OneToOneField(
+        PSIReport, on_delete=models.CASCADE, related_name="lab_metrics"
+    )
     fcp_s: Optional[float] = models.FloatField(null=True)
     lcp_s: Optional[float] = models.FloatField(null=True)
     speed_index_s: Optional[float] = models.FloatField(null=True)
@@ -87,7 +120,10 @@ class LabMetrics(models.Model):
 
 class CategoryScores(models.Model):
     """Category scores from PSI (performance, accessibility, etc)."""
-    psi_report: PSIReport = models.OneToOneField(PSIReport, on_delete=models.CASCADE, related_name='category_scores')
+
+    psi_report: PSIReport = models.OneToOneField(
+        PSIReport, on_delete=models.CASCADE, related_name="category_scores"
+    )
     performance: Optional[float] = models.FloatField(null=True)
     accessibility: Optional[float] = models.FloatField(null=True)
     best_practices: Optional[float] = models.FloatField(null=True)
@@ -96,7 +132,10 @@ class CategoryScores(models.Model):
 
 class Audit(models.Model):
     """Detailed audit results from PSI."""
-    psi_report: PSIReport = models.ForeignKey(PSIReport, on_delete=models.CASCADE, related_name='audits')
+
+    psi_report: PSIReport = models.ForeignKey(
+        PSIReport, on_delete=models.CASCADE, related_name="audits"
+    )
     category: str = models.CharField(max_length=32)
     audit_key: str = models.CharField(max_length=64)
     title: str = models.CharField(max_length=256)
@@ -104,4 +143,4 @@ class Audit(models.Model):
     score: Optional[float] = models.FloatField(null=True)
     score_display_mode: Optional[str] = models.CharField(max_length=32, null=True)
     display_value: Optional[str] = models.CharField(max_length=256, null=True)
-    details: Optional[dict] = models.JSONField(null=True) 
+    details: Optional[dict] = models.JSONField(null=True)
