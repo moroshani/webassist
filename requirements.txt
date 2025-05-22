@@ -15,5 +15,4 @@ cryptography
 psycopg2-binary
 pytest-cov
 django-stubs
-mypy-django-plugin
 types-requests 
