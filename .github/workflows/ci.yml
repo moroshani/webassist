@@ -29,6 +29,8 @@ jobs:
       DJANGO_DEBUG: 'False'
       DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1
       DATABASE_URL: postgres://user:pass@localhost:5432/test_db
+      PGUSER: user
+      PGPASSWORD: pass
     steps:
       - uses: actions/checkout@v3
       - name: Set up Python

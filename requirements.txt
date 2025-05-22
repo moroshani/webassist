@@ -15,4 +15,5 @@ cryptography
 psycopg2-binary
 pytest-cov
 django-stubs
-types-requests 
+types-requests
+dj-database-url 
