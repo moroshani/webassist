@@ -13,4 +13,5 @@ requests
 PyJWT
 cryptography
 psycopg2-binary
-pytest-cov 
+pytest-cov
+django-stubs 
