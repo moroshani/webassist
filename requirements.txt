@@ -8,9 +8,9 @@ coverage
 black
 isort
 mypy
-django-allauth 
+django-allauth
 requests
 PyJWT
 cryptography
 psycopg2-binary
-pytest-cov
+pytest-cov 
