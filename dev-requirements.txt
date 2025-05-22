@@ -1,0 +1,7 @@
+mypy
+django-stubs
+mypy-django-plugin
+pytest
+pytest-cov
+black
+isort 
