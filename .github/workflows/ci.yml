@@ -51,6 +51,8 @@ jobs:
         run: |
           black --check .
           isort --check-only .
+      - name: Clear mypy cache
+        run: rm -rf .mypy_cache
       - name: Type check
         run: |
-          mypy webassist --install-types --non-interactive 
+          mypy webassist --install-types --non-interactive -v 
