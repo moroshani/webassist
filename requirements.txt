@@ -10,3 +10,4 @@ isort
 mypy
 django-allauth 
 requests
+PyJWT
