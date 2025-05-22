@@ -68,9 +68,7 @@ class PSIReport(models.Model):
         blank=True,
         null=True,
     )
-    fetch_time = models.DateTimeField(
-        blank=True, null=True
-    )
+    fetch_time = models.DateTimeField(blank=True, null=True)
     strategy = models.CharField(
         max_length=16,
         choices=[("mobile", "Mobile"), ("desktop", "Desktop")],
