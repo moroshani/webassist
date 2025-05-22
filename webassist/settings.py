@@ -98,7 +98,6 @@ STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
 # PageSpeed Insights API Key
 PSI_API_KEY = get_env_setting('PSI_API_KEY')
-print("Loaded PSI_API_KEY:", repr(PSI_API_KEY))
 
 # Security Settings
 if not DEBUG:
