@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+      PSI_API_KEY: ${{ secrets.PSI_API_KEY }}
     steps:
       - uses: actions/checkout@v3
       - name: Set up Python
