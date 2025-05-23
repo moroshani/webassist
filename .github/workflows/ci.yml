@@ -9,28 +9,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:13
-        env:
-          POSTGRES_DB: test_db
-          POSTGRES_USER: user
-          POSTGRES_PASSWORD: pass
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    env:
-      DJANGO_SECRET_KEY: testsecretkey
-      PSI_API_KEY: testapikey
-      DJANGO_DEBUG: 'False'
-      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1
-      DATABASE_URL: postgres://user:pass@localhost:5432/test_db
-      PGUSER: user
-      PGPASSWORD: pass
     steps:
       - uses: actions/checkout@v3
       - name: Set up Python
