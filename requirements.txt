@@ -12,6 +12,7 @@ django-allauth
 requests
 PyJWT
 cryptography
+django_cryptography
 psycopg2-binary
 pytest-cov
 django-stubs
