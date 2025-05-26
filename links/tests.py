@@ -30,5 +30,5 @@ class LinkListViewTest(TestCase):
 
     def test_link_list_view_status_code(self):
         self.client.force_login(self.user)
-        response = self.client.get(reverse("link_list"), follow=True)
+        response = self.client.get(reverse("dashboard"), follow=True)
         self.assertEqual(response.status_code, 200)
