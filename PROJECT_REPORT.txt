@@ -1,0 +1,64 @@
+# WebAssist Project Report & Living Roadmap
+
+## Project Overview
+WebAssist is a Django-based web assistant for monitoring, analyzing, and improving websites. It provides a unified dashboard, modular analytics, per-user API key management, and deep SSL/security checks. The project is designed for extensibility, modern UX, and robust analytics for each feature.
+
+---
+
+## Current Features (as of this report)
+- **Unified Dashboard**: All sites and key metrics (PSI, uptime, SSL, etc.) at a glance.
+- **Modular Feature Analytics**: Each feature (Uptime, PSI, SSL, SSL Labs, etc.) has History, Trend, and Compare tabs with charts and tables.
+- **Per-User API Keys**: Each user manages their own API keys for all services (no global/fallback keys).
+- **Uptime Monitoring**: Live status, history, trend, and compare analytics via UptimeRobot.
+- **PageSpeed Insights**: Google PSI integration with full analytics and export.
+- **SSL Certificate Checks**: Local SSL inspection and advanced SSL Labs scans, with expiry/grade trends and comparison.
+- **Export/Import**: Export and import links and reports as CSV/JSON.
+- **User Management**: Secure authentication, social login, and user settings.
+- **Modern UI**: Bootstrap 5, Chart.js, responsive design.
+
+---
+
+## Architecture & Technologies
+- **Backend**: Django 4.2+, Python 3.10+
+- **Frontend**: Bootstrap 5, Chart.js, JavaScript
+- **Database**: SQLite (dev), PostgreSQL/MySQL (prod recommended)
+- **APIs**: Google PageSpeed Insights, UptimeRobot, SSL Labs
+- **Per-user API key storage**: Encrypted in DB, managed via settings page
+
+---
+
+## Remaining Features & Roadmap
+### High Priority
+- **Security Headers Check**: Analyze HTTP response headers for security best practices (CSP, HSTS, X-Frame-Options, etc.).
+- **SEO Audit**: Integrate a third-party or local SEO audit (meta tags, robots.txt, sitemap, etc.).
+- **Notifications**: Email or in-app notifications for downtime, expiring SSL, or failed checks.
+- **Advanced User Roles**: Add support for team/collaborator roles, permissions, and site sharing.
+- **API Rate/Quota Monitoring**: Show API usage/quota for each user's keys.
+- **Accessibility Checks**: Integrate Lighthouse or Axe accessibility audits.
+
+### Medium Priority
+- **Web Vitals Analytics**: Track and trend Core Web Vitals (LCP, FID, CLS) over time.
+- **Custom Feature Plugins**: Allow users to add custom checks or integrations.
+- **Multi-language Support**: i18n for UI and reports.
+- **Mobile App/Responsive PWA**: Enhance mobile experience or provide a PWA.
+- **Service Status Page**: Public status page for monitored sites.
+
+### Low Priority / Nice-to-Have
+- **Integrations**: Slack, Discord, Teams notifications.
+- **Automated Remediation**: Suggest or trigger fixes for common issues.
+- **White-labeling**: Custom branding for agencies.
+- **Billing/Subscription**: For SaaS deployments.
+
+---
+
+## AI Assistant Task: Update This File
+Every time a feature is added, changed, or removed, or a significant refactor is performed, the AI assistant must:
+- Update the 'Current Features' section.
+- Move completed items from 'Remaining Features' to 'Current Features.'
+- Add new ideas or user requests to the roadmap.
+- Add a dated changelog entry at the bottom of this file.
+
+---
+
+## Changelog
+- 2025-05-26: Initial report and roadmap created by AI assistant. Living file—update after every significant change. 
