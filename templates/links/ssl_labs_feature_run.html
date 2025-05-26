@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% block title %}SSL Labs Advanced Scan for {{ link.title }}{% endblock %}
+{% block content %}
+<h1 class="mb-4">SSL Labs Advanced Scan for <span class="text-primary">{{ link.title }}</span></h1>
+<form method="post" class="mb-4">
+  {% csrf_token %}
+  <button type="submit" class="btn btn-primary">Run Advanced SSL Labs Scan</button>
+</form>
+{% if error %}
+  <div class="alert alert-danger">Error: {{ error }}</div>
+{% endif %}
+{% if scan %}
+  <div class="card mb-4">
+    <div class="card-header bg-info text-white"><i class="bi bi-shield-check"></i> SSL Labs Result</div>
+    <div class="card-body">
+      <dl class="row">
+        <dt class="col-sm-3">Scanned At</dt><dd class="col-sm-9">{{ scan.scanned_at|date:'Y-m-d H:i:s' }}</dd>
+        <dt class="col-sm-3">Endpoint</dt><dd class="col-sm-9">{{ scan.endpoint|default:'-' }}</dd>
+        <dt class="col-sm-3">Grade</dt><dd class="col-sm-9"><span class="badge bg-success fs-5">{{ scan.grade|default:'-' }}</span></dd>
+        <dt class="col-sm-3">Status</dt><dd class="col-sm-9">{{ scan.status }}</dd>
+        <dt class="col-sm-3">Subject</dt><dd class="col-sm-9">{{ scan.subject }}</dd>
+        <dt class="col-sm-3">Issuer</dt><dd class="col-sm-9">{{ scan.issuer }}</dd>
+        <dt class="col-sm-3">Serial Number</dt><dd class="col-sm-9">{{ scan.serial_number }}</dd>
+        <dt class="col-sm-3">Not Before</dt><dd class="col-sm-9">{{ scan.not_before }}</dd>
+        <dt class="col-sm-3">Not After (Expiry)</dt><dd class="col-sm-9">{{ scan.not_after }}</dd>
+        <dt class="col-sm-3">SANs</dt><dd class="col-sm-9">{{ scan.san }}</dd>
+        <dt class="col-sm-3">Signature Algorithm</dt><dd class="col-sm-9">{{ scan.signature_algorithm }}</dd>
+        <dt class="col-sm-3">Public Key Type</dt><dd class="col-sm-9">{{ scan.public_key_type }}</dd>
+        <dt class="col-sm-3">Public Key Bits</dt><dd class="col-sm-9">{{ scan.public_key_bits }}</dd>
+        <dt class="col-sm-3">OCSP URL</dt><dd class="col-sm-9">{{ scan.ocsp_url|default:'-' }}</dd>
+        <dt class="col-sm-3">CRL URL</dt><dd class="col-sm-9">{{ scan.crl_url|default:'-' }}</dd>
+        <dt class="col-sm-3">Chain Issues</dt><dd class="col-sm-9">{{ scan.chain_issues|default:'-' }}</dd>
+        <dt class="col-sm-3">HSTS</dt><dd class="col-sm-9">{{ scan.hsts|yesno:"Yes,No" }}</dd>
+        <dt class="col-sm-3">HSTS Max Age</dt><dd class="col-sm-9">{{ scan.hsts_max_age|default:'-' }}</dd>
+        <dt class="col-sm-3">HSTS Preload</dt><dd class="col-sm-9">{{ scan.hsts_preload|yesno:"Yes,No" }}</dd>
+        <dt class="col-sm-3">Forward Secrecy</dt><dd class="col-sm-9">{{ scan.forward_secrecy|yesno:"Yes,No" }}</dd>
+        <dt class="col-sm-3">Protocols</dt><dd class="col-sm-9">{{ scan.protocols }}</dd>
+        <dt class="col-sm-3">Ciphers</dt><dd class="col-sm-9">{{ scan.ciphers }}</dd>
+        <dt class="col-sm-3">Vulnerabilities</dt><dd class="col-sm-9">{{ scan.vulnerabilities|default:'None' }}</dd>
+      </dl>
+      {% if scan.errors %}
+        <div class="alert alert-danger">Errors: {{ scan.errors }}</div>
+      {% endif %}
+      <details>
+        <summary>Show Raw JSON</summary>
+        <pre style="font-size:0.8em;">{{ scan.raw_json|safe }}</pre>
+      </details>
+    </div>
+  </div>
+{% endif %}
+<a href="{% url 'features_page' link.id %}" class="btn btn-secondary"><i class="bi bi-arrow-left"></i> Back to Features</a>
+{% endblock %} 

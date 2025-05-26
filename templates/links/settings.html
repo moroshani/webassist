@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% block title %}Settings | API Keys{% endblock %}
+{% block content %}
+<h1 class="mb-4">Settings</h1>
+<div class="card mb-4">
+  <div class="card-header bg-primary text-white"><i class="bi bi-key"></i> API Keys</div>
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      {% for service in services %}
+      <div class="mb-4 border-bottom pb-3">
+        <h5>{{ service.name }}</h5>
+        <div class="mb-2">
+          <label for="key_{{ service.key }}" class="form-label">API Key</label>
+          <input type="password" class="form-control" id="key_{{ service.key }}" name="key_{{ service.key }}" value="{{ keys[service.key].key|default:'' }}" autocomplete="off" placeholder="Enter your API key">
+        </div>
+        <div class="mb-2">
+          <span class="badge bg-secondary">Status: {{ keys[service.key].status|default:'Not set' }}</span>
+          {% if keys[service.key].usage %}<span class="badge bg-info ms-2">Usage: {{ keys[service.key].usage }}</span>{% endif %}
+        </div>
+        <div class="mb-2">
+          <strong>Instructions:</strong> {{ service.instructions }}<br>
+          <a href="{{ service.help_url }}" target="_blank">Get your API key</a>
+        </div>
+        <div class="mb-2">
+          <strong>Limitations:</strong> {{ service.limitations }}
+        </div>
+        <button type="submit" class="btn btn-primary">Save</button>
+      </div>
+      {% endfor %}
+    </form>
+  </div>
+</div>
+{% endblock %} 

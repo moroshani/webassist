@@ -2,6 +2,7 @@ from typing import Optional
 
 from django.contrib.auth.models import User
 from django.db import models
+from django_cryptography.fields import encrypt
 
 
 class Link(models.Model):
@@ -13,6 +14,10 @@ class Link(models.Model):
     description = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    # UptimeRobot integration fields
+    uptime_monitor_id = models.CharField(max_length=32, blank=True, null=True)
+    uptime_last_status = models.CharField(max_length=32, blank=True, null=True)
+    uptime_last_checked = models.DateTimeField(blank=True, null=True)
 
     def __str__(self) -> str:
         """String representation of the link."""
@@ -142,3 +147,96 @@ class Audit(models.Model):
     score_display_mode = models.CharField(max_length=32, null=True)
     display_value = models.CharField(max_length=256, null=True)
     details = models.JSONField(null=True)
+
+
+class UserAPIKey(models.Model):
+    SERVICE_CHOICES = [
+        ("psi", "Google PageSpeed Insights"),
+        ("uptimerobot", "UptimeRobot"),
+        # Add more as needed
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="api_keys")
+    service = models.CharField(max_length=32, choices=SERVICE_CHOICES)
+    key = encrypt(models.CharField(max_length=255))
+    status = models.CharField(max_length=32, blank=True, null=True)
+    usage = models.IntegerField(blank=True, null=True)
+    last_checked = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        unique_together = ("user", "service")
+
+    def __str__(self):
+        return f"{self.user.username} - {self.get_service_display()}"
+
+
+class SSLCheck(models.Model):
+    """Result of a local SSL certificate check for a site."""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="ssl_checks")
+    link = models.ForeignKey(Link, on_delete=models.CASCADE, related_name="ssl_checks")
+    checked_at = models.DateTimeField(auto_now_add=True)
+    # Certificate details
+    subject = models.TextField()
+    issuer = models.TextField()
+    serial_number = models.CharField(max_length=128)
+    version = models.IntegerField(null=True)
+    not_before = models.DateTimeField()
+    not_after = models.DateTimeField()
+    san = models.TextField(blank=True)  # comma-separated
+    signature_algorithm = models.CharField(max_length=128, blank=True)
+    public_key_type = models.CharField(max_length=64, blank=True)
+    public_key_bits = models.IntegerField(null=True)
+    ocsp_url = models.TextField(blank=True)
+    crl_url = models.TextField(blank=True)
+    # Chain info
+    chain_count = models.IntegerField(default=1)
+    is_self_signed = models.BooleanField(default=False)
+    is_expired = models.BooleanField(default=False)
+    is_weak_signature = models.BooleanField(default=False)
+    is_short_key = models.BooleanField(default=False)
+    # Warnings and errors
+    warnings = models.TextField(blank=True)
+    errors = models.TextField(blank=True)
+    # Raw cert (PEM or DER, optional)
+    raw_cert = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-checked_at"]
+
+
+class SSLLabsScan(models.Model):
+    """Result of an SSL Labs advanced scan for a site."""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="ssllabs_scans")
+    link = models.ForeignKey(Link, on_delete=models.CASCADE, related_name="ssllabs_scans")
+    scanned_at = models.DateTimeField(auto_now_add=True)
+    endpoint = models.CharField(max_length=255, blank=True)  # IP or hostname
+    grade = models.CharField(max_length=4, blank=True)
+    status = models.CharField(max_length=64, blank=True)
+    # Certificate details
+    subject = models.TextField(blank=True)
+    issuer = models.TextField(blank=True)
+    serial_number = models.CharField(max_length=128, blank=True)
+    not_before = models.DateTimeField(null=True)
+    not_after = models.DateTimeField(null=True)
+    san = models.TextField(blank=True)
+    signature_algorithm = models.CharField(max_length=128, blank=True)
+    public_key_type = models.CharField(max_length=64, blank=True)
+    public_key_bits = models.IntegerField(null=True)
+    ocsp_url = models.TextField(blank=True)
+    crl_url = models.TextField(blank=True)
+    chain_issues = models.TextField(blank=True)
+    # Security features
+    hsts = models.BooleanField(default=False)
+    hsts_max_age = models.IntegerField(null=True)
+    hsts_preload = models.BooleanField(default=False)
+    forward_secrecy = models.BooleanField(default=False)
+    protocols = models.TextField(blank=True)  # comma-separated
+    ciphers = models.TextField(blank=True)    # comma-separated
+    vulnerabilities = models.TextField(blank=True)
+    # Warnings and errors
+    warnings = models.TextField(blank=True)
+    errors = models.TextField(blank=True)
+    # Full raw JSON
+    raw_json = models.JSONField(blank=True, null=True)
+
+    class Meta:
+        ordering = ["-scanned_at"]

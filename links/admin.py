@@ -8,6 +8,7 @@ from .models import (
     Link,
     Page,
     PSIReport,
+    UserAPIKey,
 )
 
 # Custom admin actions
@@ -74,3 +75,4 @@ admin.site.register(FieldMetrics)
 admin.site.register(LabMetrics)
 admin.site.register(CategoryScores)
 admin.site.register(Audit)
+admin.site.register(UserAPIKey)

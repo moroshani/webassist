@@ -5,7 +5,6 @@ from . import views
 urlpatterns = [
     path("", views.root_redirect, name="root_redirect"),
     path("dashboard/", views.dashboard, name="dashboard"),
-    path("sites/", views.link_list, name="link_list"),
     path(
         "sites/<int:link_id>/fetch-psi/",
         views.fetch_psi_report,
@@ -37,4 +36,14 @@ urlpatterns = [
     path("sites/<int:link_id>/", views.site_detail, name="site_detail"),
     path("sites/add/", views.add_site, name="add_site"),
     path("profile/", views.profile, name="profile"),
+    path("sites/<int:link_id>/features/", views.features_page, name="features_page"),
+    path("sites/<int:link_id>/features/uptime/", views.uptime_feature_run, name="uptime_feature_run"),
+    path("sites/<int:link_id>/features/uptime/history/", views.uptime_history, name="uptime_history"),
+    path("sites/<int:link_id>/features/uptime/history/export/csv/", views.export_uptime_logs_csv, name="export_uptime_logs_csv"),
+    path("sites/<int:link_id>/features/uptime/history/export/json/", views.export_uptime_logs_json, name="export_uptime_logs_json"),
+    path("sites/<int:link_id>/features/ssl/", views.ssl_feature_run, name="ssl_feature_run"),
+    path("sites/<int:link_id>/features/ssl-labs/", views.ssl_labs_feature_run, name="ssl_labs_feature_run"),
+    path("sites/<int:link_id>/features/ssl/history/", views.ssl_history, name="ssl_history"),
+    path("sites/<int:link_id>/features/ssl-labs/history/", views.ssl_labs_history, name="ssl_labs_history"),
+    path("settings/", views.settings_view, name="settings"),
 ]

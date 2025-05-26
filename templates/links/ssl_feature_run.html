@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block title %}SSL Certificate Check for {{ link.title }}{% endblock %}
+{% block content %}
+<h1 class="mb-4">SSL Certificate Check for <span class="text-primary">{{ link.title }}</span></h1>
+<form method="post" class="mb-4">
+  {% csrf_token %}
+  <button type="submit" class="btn btn-primary">Run SSL Check Now</button>
+</form>
+{% if error %}
+  <div class="alert alert-danger">Error: {{ error }}</div>
+{% endif %}
+{% if ssl_check %}
+  <div class="card mb-4">
+    <div class="card-header bg-success text-white"><i class="bi bi-shield-lock"></i> Certificate Details</div>
+    <div class="card-body">
+      <dl class="row">
+        <dt class="col-sm-3">Checked At</dt><dd class="col-sm-9">{{ ssl_check.checked_at|date:'Y-m-d H:i:s' }}</dd>
+        <dt class="col-sm-3">Subject</dt><dd class="col-sm-9">{{ ssl_check.subject }}</dd>
+        <dt class="col-sm-3">Issuer</dt><dd class="col-sm-9">{{ ssl_check.issuer }}</dd>
+        <dt class="col-sm-3">Serial Number</dt><dd class="col-sm-9">{{ ssl_check.serial_number }}</dd>
+        <dt class="col-sm-3">Version</dt><dd class="col-sm-9">{{ ssl_check.version }}</dd>
+        <dt class="col-sm-3">Not Before</dt><dd class="col-sm-9">{{ ssl_check.not_before }}</dd>
+        <dt class="col-sm-3">Not After (Expiry)</dt><dd class="col-sm-9">{{ ssl_check.not_after }}</dd>
+        <dt class="col-sm-3">SANs</dt><dd class="col-sm-9">{{ ssl_check.san }}</dd>
+        <dt class="col-sm-3">Signature Algorithm</dt><dd class="col-sm-9">{{ ssl_check.signature_algorithm }}</dd>
+        <dt class="col-sm-3">Public Key Type</dt><dd class="col-sm-9">{{ ssl_check.public_key_type }}</dd>
+        <dt class="col-sm-3">Public Key Bits</dt><dd class="col-sm-9">{{ ssl_check.public_key_bits }}</dd>
+        <dt class="col-sm-3">OCSP URL</dt><dd class="col-sm-9">{{ ssl_check.ocsp_url|default:'-' }}</dd>
+        <dt class="col-sm-3">CRL URL</dt><dd class="col-sm-9">{{ ssl_check.crl_url|default:'-' }}</dd>
+        <dt class="col-sm-3">Chain Count</dt><dd class="col-sm-9">{{ ssl_check.chain_count }}</dd>
+        <dt class="col-sm-3">Self-Signed?</dt><dd class="col-sm-9">{{ ssl_check.is_self_signed|yesno:"Yes,No" }}</dd>
+        <dt class="col-sm-3">Expired?</dt><dd class="col-sm-9">{{ ssl_check.is_expired|yesno:"Yes,No" }}</dd>
+        <dt class="col-sm-3">Weak Signature?</dt><dd class="col-sm-9">{{ ssl_check.is_weak_signature|yesno:"Yes,No" }}</dd>
+        <dt class="col-sm-3">Short Key?</dt><dd class="col-sm-9">{{ ssl_check.is_short_key|yesno:"Yes,No" }}</dd>
+      </dl>
+      {% if ssl_check.warnings %}
+        <div class="alert alert-warning">Warnings: {{ ssl_check.warnings }}</div>
+      {% endif %}
+      {% if ssl_check.errors %}
+        <div class="alert alert-danger">Errors: {{ ssl_check.errors }}</div>
+      {% endif %}
+      <details>
+        <summary>Show Raw Certificate</summary>
+        <pre style="font-size:0.8em;">{{ ssl_check.raw_cert }}</pre>
+      </details>
+    </div>
+  </div>
+{% endif %}
+<a href="{% url 'features_page' link.id %}" class="btn btn-secondary"><i class="bi bi-arrow-left"></i> Back to Features</a>
+{% endblock %} 

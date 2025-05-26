@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block title %}Features for {{ link.title }}{% endblock %}
+{% block content %}
+<h1 class="mb-4">Features for <span class="text-primary">{{ link.title }}</span></h1>
+<div class="card mb-4">
+  <div class="card-header bg-primary text-white">
+    <i class="bi bi-list"></i> Available Features
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Feature</th>
+            <th>Description</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for feature in features %}
+          <tr>
+            <td><strong>{{ feature.name }}</strong></td>
+            <td>{{ feature.description }}</td>
+            <td>
+              <a href="{{ feature.run_url }}" class="btn btn-primary" target="_blank">Run Now</a>
+              {% if feature.has_history and feature.history_url %}
+                <a href="{{ feature.history_url }}" class="btn btn-outline-secondary ms-2" target="_blank">History</a>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<a href="{% url 'dashboard' %}" class="btn btn-secondary"><i class="bi bi-arrow-left"></i> Back to Dashboard</a>
+{% endblock %} 

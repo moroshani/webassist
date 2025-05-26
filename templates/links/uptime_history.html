@@ -1,0 +1,499 @@
+{% extends 'base.html' %}
+{% block title %}Uptime History for {{ link.title }}{% endblock %}
+{% block content %}
+<h1 class="mb-4">Uptime History for <span class="text-primary">{{ link.title }}</span></h1>
+<ul class="nav nav-tabs mb-3" id="uptimeHistoryTabs" role="tablist">
+  <li class="nav-item" role="presentation">
+    <a class="nav-link active" id="history-tab" href="#history" data-bs-toggle="tab" role="tab">History</a>
+  </li>
+  <li class="nav-item" role="presentation">
+    <a class="nav-link" id="trend-tab" href="#trend" data-bs-toggle="tab" role="tab">Trend</a>
+  </li>
+  <li class="nav-item" role="presentation">
+    <a class="nav-link" id="compare-tab" href="#compare" data-bs-toggle="tab" role="tab">Compare</a>
+  </li>
+</ul>
+<div class="tab-content" id="uptimeHistoryTabsContent">
+  <div class="tab-pane fade show active" id="history" role="tabpanel" aria-labelledby="history-tab">
+    <div class="mb-3 d-flex justify-content-between align-items-center">
+      <form class="d-flex align-items-center" method="get">
+        <select name="type" class="form-select form-select-sm me-2" onchange="this.form.submit()">
+          <option value="">All Types</option>
+          <option value="1" {% if log_type == '1' %}selected{% endif %}>Down</option>
+          <option value="2" {% if log_type == '2' %}selected{% endif %}>Up</option>
+          <option value="99" {% if log_type == '99' %}selected{% endif %}>Other</option>
+        </select>
+        <select name="sort" class="form-select form-select-sm me-2" onchange="this.form.submit()">
+          <option value="-datetime" {% if sort == '-datetime' %}selected{% endif %}>Newest First</option>
+          <option value="datetime" {% if sort == 'datetime' %}selected{% endif %}>Oldest First</option>
+        </select>
+        <input type="number" name="per_page" class="form-control form-control-sm me-2" value="{{ per_page }}" min="1" max="100" style="width:90px;" onchange="this.form.submit()">
+        <button class="btn btn-outline-secondary btn-sm">Apply</button>
+      </form>
+      <div>
+        <a href="{% url 'export_uptime_logs_csv' link.id %}" class="btn btn-outline-primary btn-sm me-2"><i class="bi bi-file-earmark-spreadsheet"></i> Export CSV</a>
+        <a href="{% url 'export_uptime_logs_json' link.id %}" class="btn btn-outline-success btn-sm"><i class="bi bi-download"></i> Export JSON</a>
+      </div>
+    </div>
+    <div class="card mb-4">
+      <div class="card-header bg-dark text-white"><i class="bi bi-journal-text"></i> Logs</div>
+      <div class="card-body">
+        {% if logs %}
+        <div class="table-responsive">
+          <table class="table table-sm table-striped">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Reason</th>
+                <th>Duration</th>
+                <th>Status Code</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for log in logs %}
+              <tr>
+                <td>{{ log.datetime|date:'Y-m-d H:i:s' }}</td>
+                <td>{% if log.type == 1 %}Down{% elif log.type == 2 %}Up{% else %}Other{% endif %}</td>
+                <td>{{ log.reason.detail|default:'N/A' }}</td>
+                <td>{{ log.duration|default:'-' }}</td>
+                <td>{{ log.status_code|default:'-' }}</td>
+                <td>{{ log|safe }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <span class="text-muted">No logs available.</span>
+        {% endif %}
+        <nav aria-label="Logs pagination">
+          <ul class="pagination justify-content-center mt-3">
+            {% for p in range(1, (total // per_page) + (1 if total % per_page else 0) + 1) %}
+              <li class="page-item {% if p == page %}active{% endif %}"><a class="page-link" href="?page={{ p }}&per_page={{ per_page }}{% if log_type %}&type={{ log_type }}{% endif %}{% if sort %}&sort={{ sort }}{% endif %}">{{ p }}</a></li>
+            {% endfor %}
+          </ul>
+        </nav>
+      </div>
+    </div>
+    <div class="card mb-4">
+      <div class="card-header bg-info text-white"><i class="bi bi-graph-up"></i> Visual History</div>
+      <div class="card-body">
+        <canvas id="uptimeChart" height="100"></canvas>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <script>
+          document.addEventListener('DOMContentLoaded', function() {
+            const ctx = document.getElementById('uptimeChart').getContext('2d');
+            const labels = [{% for log in logs %}'{{ log.datetime|date:"Y-m-d H:i" }}',{% endfor %}];
+            const data = [{% for log in logs %}{{ log.type }},{% endfor %}];
+            function uptimeTickLabel(value) {
+              if (value === 2) return 'Up';
+              if (value === 1) return 'Down';
+              return 'Other';
+            }
+            new Chart(ctx, {
+              type: 'line',
+              data: {
+                labels: labels,
+                datasets: [{
+                  label: 'Uptime Log Type (2=Up, 1=Down)',
+                  data: data,
+                  borderColor: 'rgba(40, 167, 69, 1)',
+                  backgroundColor: 'rgba(40, 167, 69, 0.2)',
+                  fill: true,
+                }]
+              },
+              options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: {
+                  y: {
+                    beginAtZero: true,
+                    ticks: {
+                      stepSize: 1,
+                      callback: uptimeTickLabel
+                    }
+                  }
+                }
+              }
+            });
+          });
+        </script>
+      </div>
+    </div>
+    <a href="{% url 'uptime_feature_run' link.id %}" class="btn btn-secondary"><i class="bi bi-arrow-left"></i> Back to Uptime Feature</a>
+  </div>
+  <div class="tab-pane fade" id="trend" role="tabpanel" aria-labelledby="trend-tab">
+    <form class="row g-3 align-items-end mb-4" method="get" action="#trend">
+      <div class="col-auto">
+        <label for="trendStart" class="form-label mb-0">Start Date</label>
+        <input type="date" class="form-control" id="trendStart" name="trend_start" value="{{ trend_start|default:'' }}">
+      </div>
+      <div class="col-auto">
+        <label for="trendEnd" class="form-label mb-0">End Date</label>
+        <input type="date" class="form-control" id="trendEnd" name="trend_end" value="{{ trend_end|default:'' }}">
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-primary">Show Trend</button>
+      </div>
+    </form>
+    {% if trend_data %}
+    <div class="row mb-4">
+      <div class="col-md-3">
+        <div class="card text-center">
+          <div class="card-header bg-success text-white">Uptime %</div>
+          <div class="card-body">
+            <h4 class="card-title">{{ trend_data.uptime_percent|floatformat:2 }}%</h4>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card text-center">
+          <div class="card-header bg-danger text-white">Downtime Events</div>
+          <div class="card-body">
+            <h4 class="card-title">{{ trend_data.downtime_events }}</h4>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card text-center">
+          <div class="card-header bg-warning text-dark">Longest Downtime</div>
+          <div class="card-body">
+            <h4 class="card-title">{{ trend_data.longest_downtime|default:'N/A' }}</h4>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card text-center">
+          <div class="card-header bg-info text-white">Total Checks</div>
+          <div class="card-body">
+            <h4 class="card-title">{{ trend_data.total_checks }}</h4>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% if trend_data.min_response or trend_data.avg_response or trend_data.max_response %}
+    <div class="row mb-4">
+      <div class="col-md-4">
+        <div class="card text-center">
+          <div class="card-header bg-info text-white">Min Response Time</div>
+          <div class="card-body">
+            <h4 class="card-title">{{ trend_data.min_response|floatformat:1|default:'N/A' }} ms</h4>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card text-center">
+          <div class="card-header bg-info text-white">Avg Response Time</div>
+          <div class="card-body">
+            <h4 class="card-title">{{ trend_data.avg_response|floatformat:1|default:'N/A' }} ms</h4>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card text-center">
+          <div class="card-header bg-info text-white">Max Response Time</div>
+          <div class="card-body">
+            <h4 class="card-title">{{ trend_data.max_response|floatformat:1|default:'N/A' }} ms</h4>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+    <div class="card mb-4">
+      <div class="card-header bg-info text-white"><i class="bi bi-graph-up"></i> Uptime Trend</div>
+      <div class="card-body">
+        <canvas id="trendChart" height="100"></canvas>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <script>
+          document.addEventListener('DOMContentLoaded', function() {
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            const labels = [{% for point in trend_data.points %}'{{ point.date }}',{% endfor %}];
+            const data = [{% for point in trend_data.points %}{{ point.status }},{% endfor %}];
+            function uptimeTickLabel(value) {
+              if (value === 2) return 'Up';
+              if (value === 1) return 'Down';
+              return 'Other';
+            }
+            new Chart(ctx, {
+              type: 'line',
+              data: {
+                labels: labels,
+                datasets: [{
+                  label: 'Status (2=Up, 1=Down)',
+                  data: data,
+                  borderColor: 'rgba(40, 167, 69, 1)',
+                  backgroundColor: 'rgba(40, 167, 69, 0.2)',
+                  fill: true,
+                }]
+              },
+              options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: {
+                  y: {
+                    beginAtZero: true,
+                    ticks: {
+                      stepSize: 1,
+                      callback: uptimeTickLabel
+                    }
+                  }
+                }
+              }
+            });
+          });
+        </script>
+      </div>
+    </div>
+    {% if trend_data and trend_data.logs %}
+    <div class="card mb-4">
+      <div class="card-header bg-light">Logs in Range</div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-sm table-striped">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Reason</th>
+                <th>Duration</th>
+                <th>Status Code</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for log in trend_data.logs %}
+              <tr>
+                <td>{{ log.datetime|date:'Y-m-d H:i:s' }}</td>
+                <td>{% if log.type == 1 %}Down{% elif log.type == 2 %}Up{% else %}Other{% endif %}</td>
+                <td>{{ log.reason.detail|default:'N/A' }}</td>
+                <td>{{ log.duration|default:'-' }}</td>
+                <td>{{ log.status_code|default:'-' }}</td>
+                <td>{{ log|safe }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="alert alert-info mt-4">Select a date range and click "Show Trend" to view analytics.</div>
+    {% endif %}
+  </div>
+  <div class="tab-pane fade" id="compare" role="tabpanel" aria-labelledby="compare-tab">
+    <form class="row g-3 align-items-end mb-4" method="get" action="#compare">
+      <div class="col-auto">
+        <label for="compareStart1" class="form-label mb-0">Period 1 Start</label>
+        <input type="date" class="form-control" id="compareStart1" name="compare_start1" value="{{ compare_start1|default:'' }}">
+      </div>
+      <div class="col-auto">
+        <label for="compareEnd1" class="form-label mb-0">Period 1 End</label>
+        <input type="date" class="form-control" id="compareEnd1" name="compare_end1" value="{{ compare_end1|default:'' }}">
+      </div>
+      <div class="col-auto">
+        <label for="compareStart2" class="form-label mb-0">Period 2 Start</label>
+        <input type="date" class="form-control" id="compareStart2" name="compare_start2" value="{{ compare_start2|default:'' }}">
+      </div>
+      <div class="col-auto">
+        <label for="compareEnd2" class="form-label mb-0">Period 2 End</label>
+        <input type="date" class="form-control" id="compareEnd2" name="compare_end2" value="{{ compare_end2|default:'' }}">
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-primary">Compare</button>
+      </div>
+    </form>
+    {% if compare_data %}
+    <div class="row mb-4">
+      <div class="col-md-6">
+        <div class="card mb-3">
+          <div class="card-header bg-secondary text-white">Period 1 ({{ compare_start1 }} to {{ compare_end1 }})</div>
+          <div class="card-body">
+            <div class="row text-center">
+              <div class="col">
+                <span class="badge bg-success">Uptime: {{ compare_data.period1.uptime_percent|floatformat:2 }}%</span>
+              </div>
+              <div class="col">
+                <span class="badge bg-danger">Downtime: {{ compare_data.period1.downtime_events }}</span>
+              </div>
+              <div class="col">
+                <span class="badge bg-warning text-dark">Longest Down: {{ compare_data.period1.longest_downtime|default:'N/A' }}</span>
+              </div>
+              <div class="col">
+                <span class="badge bg-info text-dark">Checks: {{ compare_data.period1.total_checks }}</span>
+              </div>
+            </div>
+            {% if compare_data.period1.min_response or compare_data.period1.avg_response or compare_data.period1.max_response %}
+            <div class="row text-center mt-3">
+              <div class="col"><span class="badge bg-info">Min Resp: {{ compare_data.period1.min_response|floatformat:1|default:'N/A' }} ms</span></div>
+              <div class="col"><span class="badge bg-info">Avg Resp: {{ compare_data.period1.avg_response|floatformat:1|default:'N/A' }} ms</span></div>
+              <div class="col"><span class="badge bg-info">Max Resp: {{ compare_data.period1.max_response|floatformat:1|default:'N/A' }} ms</span></div>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card mb-3">
+          <div class="card-header bg-secondary text-white">Period 2 ({{ compare_start2 }} to {{ compare_end2 }})</div>
+          <div class="card-body">
+            <div class="row text-center">
+              <div class="col">
+                <span class="badge bg-success">Uptime: {{ compare_data.period2.uptime_percent|floatformat:2 }}%</span>
+              </div>
+              <div class="col">
+                <span class="badge bg-danger">Downtime: {{ compare_data.period2.downtime_events }}</span>
+              </div>
+              <div class="col">
+                <span class="badge bg-warning text-dark">Longest Down: {{ compare_data.period2.longest_downtime|default:'N/A' }}</span>
+              </div>
+              <div class="col">
+                <span class="badge bg-info text-dark">Checks: {{ compare_data.period2.total_checks }}</span>
+              </div>
+            </div>
+            {% if compare_data.period2.min_response or compare_data.period2.avg_response or compare_data.period2.max_response %}
+            <div class="row text-center mt-3">
+              <div class="col"><span class="badge bg-info">Min Resp: {{ compare_data.period2.min_response|floatformat:1|default:'N/A' }} ms</span></div>
+              <div class="col"><span class="badge bg-info">Avg Resp: {{ compare_data.period2.avg_response|floatformat:1|default:'N/A' }} ms</span></div>
+              <div class="col"><span class="badge bg-info">Max Resp: {{ compare_data.period2.max_response|floatformat:1|default:'N/A' }} ms</span></div>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="row mb-4">
+      <div class="col-md-12">
+        <div class="card">
+          <div class="card-header bg-info text-white"><i class="bi bi-bar-chart"></i> Comparison Chart</div>
+          <div class="card-body">
+            <canvas id="compareChart" height="100"></canvas>
+            <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+            <script>
+              document.addEventListener('DOMContentLoaded', function() {
+                const ctx = document.getElementById('compareChart').getContext('2d');
+                const labels = [{% for point in compare_data.period1.points %}'{{ point.date }}',{% endfor %}];
+                const data1 = [{% for point in compare_data.period1.points %}{{ point.status }},{% endfor %}];
+                const data2 = [{% for point in compare_data.period2.points %}{{ point.status }},{% endfor %}];
+                function uptimeTickLabel(value) {
+                  if (value === 2) return 'Up';
+                  if (value === 1) return 'Down';
+                  return 'Other';
+                }
+                new Chart(ctx, {
+                  type: 'line',
+                  data: {
+                    labels: labels,
+                    datasets: [
+                      {
+                        label: 'Period 1',
+                        data: data1,
+                        borderColor: 'rgba(40, 167, 69, 1)',
+                        backgroundColor: 'rgba(40, 167, 69, 0.2)',
+                        fill: false,
+                      },
+                      {
+                        label: 'Period 2',
+                        data: data2,
+                        borderColor: 'rgba(0, 123, 255, 1)',
+                        backgroundColor: 'rgba(0, 123, 255, 0.2)',
+                        fill: false,
+                      }
+                    ]
+                  },
+                  options: {
+                    responsive: true,
+                    plugins: { legend: { display: true } },
+                    scales: {
+                      y: {
+                        beginAtZero: true,
+                        ticks: {
+                          stepSize: 1,
+                          callback: uptimeTickLabel
+                        }
+                      }
+                    }
+                  }
+                });
+              });
+            </script>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-header bg-light">Period 1 Events</div>
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="table table-sm table-striped">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Reason</th>
+                    <th>Duration</th>
+                    <th>Status Code</th>
+                    <th>Details</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for log in compare_data.period1.logs %}
+                  <tr>
+                    <td>{{ log.datetime|date:'Y-m-d H:i:s' }}</td>
+                    <td>{% if log.type == 1 %}Down{% elif log.type == 2 %}Up{% else %}Other{% endif %}</td>
+                    <td>{{ log.reason.detail|default:'N/A' }}</td>
+                    <td>{{ log.duration|default:'-' }}</td>
+                    <td>{{ log.status_code|default:'-' }}</td>
+                    <td>{{ log|safe }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-header bg-light">Period 2 Events</div>
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="table table-sm table-striped">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Reason</th>
+                    <th>Duration</th>
+                    <th>Status Code</th>
+                    <th>Details</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for log in compare_data.period2.logs %}
+                  <tr>
+                    <td>{{ log.datetime|date:'Y-m-d H:i:s' }}</td>
+                    <td>{% if log.type == 1 %}Down{% elif log.type == 2 %}Up{% else %}Other{% endif %}</td>
+                    <td>{{ log.reason.detail|default:'N/A' }}</td>
+                    <td>{{ log.duration|default:'-' }}</td>
+                    <td>{{ log.status_code|default:'-' }}</td>
+                    <td>{{ log|safe }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="alert alert-info mt-4">Select two date ranges and click "Compare" to view side-by-side analytics.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %} 

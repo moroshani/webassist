@@ -1,0 +1,235 @@
+{% extends 'base.html' %}
+{% block title %}Uptime Report for {{ link.title }}{% endblock %}
+{% block content %}
+<h1 class="mb-4">Uptime Report for <span class="text-primary">{{ link.title }}</span></h1>
+{% if error %}
+  <div class="alert alert-danger">Error: {{ error }}</div>
+{% elif monitor %}
+  <ul class="nav nav-tabs mb-3" id="uptimeTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="general-tab" data-bs-toggle="tab" data-bs-target="#general" type="button" role="tab">General Info</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="ratios-tab" data-bs-toggle="tab" data-bs-target="#ratios" type="button" role="tab">Uptime Ratios</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="response-tab" data-bs-toggle="tab" data-bs-target="#response" type="button" role="tab">Response Times</button>
+    </li>
+    {% if monitor.ssl %}
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="ssl-tab" data-bs-toggle="tab" data-bs-target="#ssl" type="button" role="tab">SSL Info</button>
+    </li>
+    {% endif %}
+    {% if monitor.alert_contacts %}
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="contacts-tab" data-bs-toggle="tab" data-bs-target="#contacts" type="button" role="tab">Alert Contacts</button>
+    </li>
+    {% endif %}
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="logs-tab" data-bs-toggle="tab" data-bs-target="#logs" type="button" role="tab">Logs</button>
+    </li>
+    {% if monitor.maintenance_windows %}
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="maintenance-tab" data-bs-toggle="tab" data-bs-target="#maintenance" type="button" role="tab">Maintenance</button>
+    </li>
+    {% endif %}
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="raw-tab" data-bs-toggle="tab" data-bs-target="#raw" type="button" role="tab">Raw JSON</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <a class="nav-link" id="history-tab" href="{% url 'uptime_history' link.id %}" target="_blank">History</a>
+    </li>
+  </ul>
+  <div class="tab-content" id="uptimeTabsContent">
+    <!-- General Info -->
+    <div class="tab-pane fade show active" id="general" role="tabpanel">
+      <div class="card mb-4">
+        <div class="card-header bg-success text-white"><i class="bi bi-activity"></i> General Info</div>
+        <div class="card-body">
+          <dl class="row">
+            <dt class="col-sm-3">Monitor ID</dt>
+            <dd class="col-sm-9">{{ monitor.id }}</dd>
+            <dt class="col-sm-3">Friendly Name</dt>
+            <dd class="col-sm-9">{{ monitor.friendly_name }}</dd>
+            <dt class="col-sm-3">URL</dt>
+            <dd class="col-sm-9"><a href="{{ monitor.url }}" target="_blank">{{ monitor.url }}</a></dd>
+            <dt class="col-sm-3">Status</dt>
+            <dd class="col-sm-9">
+              {% if monitor.status == 2 %}
+                <span class="badge bg-success">Up</span>
+              {% elif monitor.status == 9 %}
+                <span class="badge bg-danger">Down</span>
+              {% else %}
+                <span class="badge bg-secondary">Unknown</span>
+              {% endif %}
+            </dd>
+            <dt class="col-sm-3">Type</dt>
+            <dd class="col-sm-9">{{ monitor.type }}</dd>
+            <dt class="col-sm-3">Interval</dt>
+            <dd class="col-sm-9">{{ monitor.interval }} seconds</dd>
+            <dt class="col-sm-3">Paused</dt>
+            <dd class="col-sm-9">{{ monitor.paused|yesno:"Yes,No" }}</dd>
+            <dt class="col-sm-3">Tags</dt>
+            <dd class="col-sm-9">{{ monitor.tags|default:"-" }}</dd>
+            <dt class="col-sm-3">Created</dt>
+            <dd class="col-sm-9">{{ monitor.create_datetime|date:'Y-m-d H:i:s' }}</dd>
+            <dt class="col-sm-3">Last Checked</dt>
+            <dd class="col-sm-9">{{ monitor.last_check_time|date:'Y-m-d H:i:s' }}</dd>
+            <dt class="col-sm-3">Monitor Subtype</dt>
+            <dd class="col-sm-9">{{ monitor.subtype|default:"-" }}</dd>
+            <dt class="col-sm-3">Keyword Type</dt>
+            <dd class="col-sm-9">{{ monitor.keyword_type|default:"-" }}</dd>
+            <dt class="col-sm-3">Keyword Value</dt>
+            <dd class="col-sm-9">{{ monitor.keyword_value|default:"-" }}</dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+    <!-- Uptime Ratios -->
+    <div class="tab-pane fade" id="ratios" role="tabpanel">
+      <div class="card mb-4">
+        <div class="card-header bg-info text-white"><i class="bi bi-graph-up"></i> Uptime Ratios</div>
+        <div class="card-body">
+          <ul>
+            <li>All Time: {{ monitor.all_time_uptime_ratio|default:"N/A" }}%</li>
+            <li>1 Day: {{ uptime_ratios.0|default:"N/A" }}%</li>
+            <li>7 Days: {{ uptime_ratios.1|default:"N/A" }}%</li>
+            <li>30 Days: {{ uptime_ratios.2|default:"N/A" }}%</li>
+            <li>60 Days: {{ uptime_ratios.3|default:"N/A" }}%</li>
+            <li>90 Days: {{ uptime_ratios.4|default:"N/A" }}%</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <!-- Response Times -->
+    <div class="tab-pane fade" id="response" role="tabpanel">
+      <div class="card mb-4">
+        <div class="card-header bg-warning text-dark"><i class="bi bi-clock-history"></i> Response Times</div>
+        <div class="card-body">
+          <p>Average: {{ monitor.average_response_time|default:"N/A" }} ms</p>
+          <p>Last: {{ last_response_time|default:"N/A" }} ms</p>
+          {% if monitor.response_times %}
+          <canvas id="responseChart" height="100"></canvas>
+          <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+          <script>
+            document.addEventListener('DOMContentLoaded', function() {
+              const ctx = document.getElementById('responseChart').getContext('2d');
+              const labels = [{% for rt in monitor.response_times %}'{{ rt.datetime|date:"Y-m-d H:i" }}',{% endfor %}];
+              const data = [{% for rt in monitor.response_times %}{{ rt.value }},{% endfor %}];
+              new Chart(ctx, {
+                type: 'line',
+                data: {
+                  labels: labels,
+                  datasets: [{
+                    label: 'Response Time (ms)',
+                    data: data,
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    fill: true,
+                  }]
+                },
+                options: {
+                  responsive: true,
+                  plugins: { legend: { display: false } },
+                  scales: { y: { beginAtZero: true } }
+                }
+              });
+            });
+          </script>
+          {% else %}
+          <span class="text-muted">No response time data available.</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    <!-- SSL Info -->
+    {% if monitor.ssl %}
+    <div class="tab-pane fade" id="ssl" role="tabpanel">
+      <div class="card mb-4">
+        <div class="card-header bg-secondary text-white"><i class="bi bi-shield-lock"></i> SSL Info</div>
+        <div class="card-body">
+          <dl class="row">
+            <dt class="col-sm-3">Brand</dt>
+            <dd class="col-sm-9">{{ monitor.ssl.brand|default:"-" }}</dd>
+            <dt class="col-sm-3">Product</dt>
+            <dd class="col-sm-9">{{ monitor.ssl.product|default:"-" }}</dd>
+            <dt class="col-sm-3">Expires</dt>
+            <dd class="col-sm-9">{{ monitor.ssl.expires|date:'Y-m-d H:i:s'|default:"-" }}</dd>
+            <dt class="col-sm-3">Valid</dt>
+            <dd class="col-sm-9">{{ monitor.ssl.valid|yesno:"Yes,No" }}</dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+    <!-- Alert Contacts -->
+    {% if monitor.alert_contacts %}
+    <div class="tab-pane fade" id="contacts" role="tabpanel">
+      <div class="card mb-4">
+        <div class="card-header bg-primary text-white"><i class="bi bi-person-lines-fill"></i> Alert Contacts</div>
+        <div class="card-body">
+          <ul>
+            {% for contact in monitor.alert_contacts %}
+              <li>{{ contact.friendly_name|default:"N/A" }} (ID: {{ contact.id|default:"N/A" }}) - Status: {{ contact.status|default:"N/A" }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+    <!-- Logs -->
+    <div class="tab-pane fade" id="logs" role="tabpanel">
+      <div class="card mb-4">
+        <div class="card-header bg-dark text-white"><i class="bi bi-journal-text"></i> Logs</div>
+        <div class="card-body">
+          {% if monitor.logs %}
+          <table class="table table-sm table-striped">
+            <thead><tr><th>Date</th><th>Type</th><th>Reason</th></tr></thead>
+            <tbody>
+              {% for log in monitor.logs %}
+              <tr>
+                <td>{{ log.datetime|date:'Y-m-d H:i:s' }}</td>
+                <td>
+                  {% if log.type == 1 %}Down{% elif log.type == 2 %}Up{% else %}Other{% endif %}
+                </td>
+                <td>{{ log.reason.detail|default:'N/A' }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% else %}
+          <span class="text-muted">No logs available.</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    <!-- Maintenance Windows -->
+    {% if monitor.maintenance_windows %}
+    <div class="tab-pane fade" id="maintenance" role="tabpanel">
+      <div class="card mb-4">
+        <div class="card-header bg-secondary text-white"><i class="bi bi-tools"></i> Maintenance Windows</div>
+        <div class="card-body">
+          <ul>
+            {% for mw in monitor.maintenance_windows %}
+              <li>ID: {{ mw.id|default:"N/A" }}, Type: {{ mw.type|default:"N/A" }}, Start: {{ mw.start_time|date:'Y-m-d H:i:s'|default:"-" }}, End: {{ mw.end_time|date:'Y-m-d H:i:s'|default:"-" }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+    <!-- Raw JSON -->
+    <div class="tab-pane fade" id="raw" role="tabpanel">
+      <div class="card mb-4">
+        <div class="card-header bg-secondary text-white"><i class="bi bi-code-slash"></i> Raw JSON</div>
+        <div class="card-body">
+          <pre style="max-height:400px;overflow:auto;">{{ raw_json }}</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+{% else %}
+  <div class="alert alert-info">No monitor data available.</div>
+{% endif %}
+<a href="{% url 'features_page' link.id %}" class="btn btn-secondary"><i class="bi bi-arrow-left"></i> Back to Features</a>
+{% endblock %} 

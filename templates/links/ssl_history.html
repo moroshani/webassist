@@ -1,0 +1,153 @@
+{% extends 'base.html' %}
+{% block title %}SSL Certificate History for {{ link.title }}{% endblock %}
+{% block content %}
+<h1 class="mb-4">SSL Certificate History for <span class="text-primary">{{ link.title }}</span></h1>
+<ul class="nav nav-tabs mb-3" id="sslTabs" role="tablist">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link active" id="history-tab" data-bs-toggle="tab" data-bs-target="#history" type="button" role="tab">History</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="trend-tab" data-bs-toggle="tab" data-bs-target="#trend" type="button" role="tab">Trend</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="compare-tab" data-bs-toggle="tab" data-bs-target="#compare" type="button" role="tab">Compare</button>
+  </li>
+</ul>
+<div class="tab-content" id="sslTabsContent">
+  <!-- History Tab -->
+  <div class="tab-pane fade show active" id="history" role="tabpanel">
+    <div class="table-responsive mb-4">
+      <table class="table table-hover align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Checked At</th>
+            <th>Expiry</th>
+            <th>Warnings</th>
+            <th>Errors</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for check in checks %}
+          <tr>
+            <td>{{ check.checked_at|date:'Y-m-d H:i' }}</td>
+            <td>{% if check.not_after %}{{ check.not_after|date:'Y-m-d' }}{% else %}-{% endif %}</td>
+            <td>{% if check.warnings %}<span class="badge bg-warning text-dark">{{ check.warnings }}</span>{% else %}-{% endif %}</td>
+            <td>{% if check.errors %}<span class="badge bg-danger">{{ check.errors }}</span>{% else %}-{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <!-- Trend Tab -->
+  <div class="tab-pane fade" id="trend" role="tabpanel">
+    <form method="get" class="row g-3 mb-3">
+      <div class="col-auto">
+        <label for="trend_start" class="form-label">Start Date</label>
+        <input type="date" class="form-control" id="trend_start" name="trend_start" value="{{ trend_start }}">
+      </div>
+      <div class="col-auto">
+        <label for="trend_end" class="form-label">End Date</label>
+        <input type="date" class="form-control" id="trend_end" name="trend_end" value="{{ trend_end }}">
+      </div>
+      <div class="col-auto align-self-end">
+        <button type="submit" class="btn btn-primary">Show Trend</button>
+      </div>
+    </form>
+    {% if trend_data %}
+      <div class="card mb-4">
+        <div class="card-header bg-info text-white">Expiry Trend</div>
+        <div class="card-body">
+          <canvas id="sslTrendChart" height="80"></canvas>
+          <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+          <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+          <script>
+            document.addEventListener('DOMContentLoaded', function() {
+              const ctx = document.getElementById('sslTrendChart').getContext('2d');
+              const labels = [{% for p in trend_data.points %}'{{ p.date }}'{% if not forloop.last %},{% endif %}{% endfor %}];
+              const data = [{% for p in trend_data.points %}{% if p.expiry %}'{{ p.expiry|date:'Y-m-d' }}'{% else %}null{% endif %}{% if not forloop.last %},{% endif %}{% endfor %}];
+              new Chart(ctx, {
+                type: 'line',
+                data: {
+                  labels: labels,
+                  datasets: [{
+                    label: 'Expiry Date',
+                    data: data,
+                    borderColor: 'rgba(40, 167, 69, 1)',
+                    backgroundColor: 'rgba(40, 167, 69, 0.2)',
+                    fill: true,
+                  }]
+                },
+                options: {
+                  responsive: true,
+                  plugins: { legend: { display: false } },
+                  scales: {
+                    y: {
+                      type: 'time',
+                      time: { unit: 'day' },
+                      title: { display: true, text: 'Expiry Date' }
+                    }
+                  }
+                }
+              });
+            });
+          </script>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+  <!-- Compare Tab -->
+  <div class="tab-pane fade" id="compare" role="tabpanel">
+    <form method="get" class="row g-3 mb-3">
+      <div class="col-auto">
+        <label for="compare_start1" class="form-label">Period 1 Start</label>
+        <input type="date" class="form-control" id="compare_start1" name="compare_start1" value="{{ compare_start1 }}">
+      </div>
+      <div class="col-auto">
+        <label for="compare_end1" class="form-label">Period 1 End</label>
+        <input type="date" class="form-control" id="compare_end1" name="compare_end1" value="{{ compare_end1 }}">
+      </div>
+      <div class="col-auto">
+        <label for="compare_start2" class="form-label">Period 2 Start</label>
+        <input type="date" class="form-control" id="compare_start2" name="compare_start2" value="{{ compare_start2 }}">
+      </div>
+      <div class="col-auto">
+        <label for="compare_end2" class="form-label">Period 2 End</label>
+        <input type="date" class="form-control" id="compare_end2" name="compare_end2" value="{{ compare_end2 }}">
+      </div>
+      <div class="col-auto align-self-end">
+        <button type="submit" class="btn btn-primary">Compare</button>
+      </div>
+    </form>
+    {% if compare_data %}
+      <div class="row mb-4">
+        <div class="col-md-6">
+          <div class="card mb-3">
+            <div class="card-header bg-secondary text-white">Period 1 ({{ compare_start1 }} to {{ compare_end1 }})</div>
+            <div class="card-body">
+              <ul>
+                <li>Min Expiry: {{ compare_data.period1.min_expiry|date:'Y-m-d' }}</li>
+                <li>Max Expiry: {{ compare_data.period1.max_expiry|date:'Y-m-d' }}</li>
+                <li>Checks: {{ compare_data.period1.count }}</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card mb-3">
+            <div class="card-header bg-secondary text-white">Period 2 ({{ compare_start2 }} to {{ compare_end2 }})</div>
+            <div class="card-body">
+              <ul>
+                <li>Min Expiry: {{ compare_data.period2.min_expiry|date:'Y-m-d' }}</li>
+                <li>Max Expiry: {{ compare_data.period2.max_expiry|date:'Y-m-d' }}</li>
+                <li>Checks: {{ compare_data.period2.count }}</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+</div>
+<a href="{% url 'features_page' link.id %}" class="btn btn-secondary"><i class="bi bi-arrow-left"></i> Back to Features</a>
+{% endblock %} 

@@ -202,3 +202,5 @@ SOCIALACCOUNT_PROVIDERS = {
         ],
     },
 }
+
+UPTIMEROBOT_API_KEY = get_env_setting("UPTIMEROBOT_API_KEY")

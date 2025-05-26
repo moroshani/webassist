@@ -6,9 +6,14 @@
   <button class="btn btn-success" onclick="openAddSiteModal()"><i class="bi bi-plus-circle"></i> Add Site</button>
 </div>
 <div class="card mb-4">
-  <div class="card-header bg-primary text-white">
-    <i class="bi bi-link-45deg"></i> My Sites
-    <a href="{% url 'link_list' %}" class="btn btn-light btn-sm float-end"><i class="bi bi-plus-circle"></i> Manage Sites</a>
+  <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+    <div>
+      <i class="bi bi-link-45deg"></i> My Sites
+    </div>
+    <div>
+      <button id="refreshTable" class="btn btn-outline-light btn-sm me-2"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+      <a href="{% url 'export_links_csv' %}" class="btn btn-outline-light btn-sm"><i class="bi bi-file-earmark-spreadsheet"></i> Export</a>
+    </div>
   </div>
   <div class="card-body p-0">
     <div class="table-responsive">
@@ -16,39 +21,38 @@
         <thead class="table-light">
           <tr>
             <th>Site</th>
-            <th>PSI Score</th>
-            <th>Last PSI Check</th>
-            <th>Status</th>
-            <th>SSL</th>
+            <th>PSI</th>
             <th>Uptime</th>
-            <th>Security Headers</th>
-            <th>Actions</th>
+            <th>SSL</th>
+            <th>SSL Labs</th>
+            <th>Features</th>
           </tr>
         </thead>
         <tbody>
           {% for site in sites_data %}
           <tr>
+            <td><strong>{{ site.link.title }}</strong><br><small>{{ site.link.url }}</small></td>
             <td>
-              <a href="{% url 'site_detail' site.link.id %}"><strong>{{ site.link.title }}</strong></a><br>
-              <small class="text-muted">{{ site.link.url }}</small>
-            </td>
-            <td id="psi-score-{{ site.link.id }}">
               {% if site.psi_status is not None %}
-                <span class="badge {% if site.psi_status >= 0.9 %}bg-success{% elif site.psi_status >= 0.5 %}bg-warning text-dark{% else %}bg-danger{% endif %}">
-                  {{ site.psi_status|floatformat:2 }}
-                </span>
+                <span class="badge bg-success">{{ site.psi_status|floatformat:2 }}</span>
+                <br><small>{{ site.psi_last_checked|date:'Y-m-d H:i' }}</small>
               {% else %}
-                <span class="text-muted">No data</span>
+                <span class="badge bg-secondary">N/A</span>
               {% endif %}
             </td>
             <td>
-              {% if site.psi_last_checked %}
-                {{ site.psi_last_checked|date:'Y-m-d H:i' }}
+              {% if site.uptime_status is not None %}
+                <span class="badge bg-success">Up</span>
+                <br><small>{{ site.uptime_last_checked|date:'Y-m-d H:i' }}</small>
+              {% elif site.link.uptime_last_status == 'error' %}
+                <span class="badge bg-danger">Error</span>
               {% else %}
-                <span class="text-muted">Never</span>
+                <span class="badge bg-secondary">N/A</span>
               {% endif %}
             </td>
             <td>
+              {% if site.ssl_expiry %}
+                <span class="badge bg-{{ site.ssl_status|yesno:'success,danger,secondary' }}">
               {% if site.psi_status is not None %}
                 {% if site.psi_status >= 0.9 %}
                   <span class="badge bg-success">Good</span>
@@ -62,22 +66,23 @@
               {% endif %}
             </td>
             <td>
-              <span class="badge bg-secondary">Coming soon</span><br><small class="text-muted">—</small>
+              {% if site.link.uptime_last_status == '2' %}
+                <span class="badge bg-success">Up</span>
+              {% elif site.link.uptime_last_status == '9' %}
+                <span class="badge bg-danger">Down</span>
+              {% elif site.link.uptime_last_status == 'error' %}
+                <span class="badge bg-warning text-dark">Error</span>
+              {% else %}
+                <span class="badge bg-secondary">Unknown</span>
+              {% endif %}
             </td>
             <td>
-              <span class="badge bg-secondary">Coming soon</span><br><small class="text-muted">—</small>
-            </td>
-            <td>
-              <span class="badge bg-secondary">Coming soon</span><br><small class="text-muted">—</small>
-            </td>
-            <td>
-              <a href="{% url 'site_detail' site.link.id %}" class="btn btn-outline-primary btn-sm"><i class="bi bi-table"></i> Details</a>
-              <button class="btn btn-outline-success btn-sm" onclick="rescanPSI({{ site.link.id }})" id="rescan-btn-{{ site.link.id }}"><i class="bi bi-arrow-repeat"></i> Re-scan</button>
+              <a href="{% url 'features_page' site.link.id %}" class="btn btn-outline-info btn-sm">Features</a>
             </td>
           </tr>
           {% empty %}
           <tr>
-            <td colspan="8" class="text-center text-muted">No sites yet. <a href="{% url 'link_list' %}">Add your first site</a>!</td>
+            <td colspan="7" class="text-center text-muted">No sites yet. Add your first site!</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -172,5 +177,16 @@ function rescanPSI(linkId) {
     btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Re-scan';
   });
 }
+document.addEventListener('DOMContentLoaded', function() {
+  const refreshBtn = document.getElementById('refreshTable');
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', function() {
+      refreshBtn.disabled = true;
+      refreshBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Refreshing...';
+      // Reload the page to refresh the table data
+      location.reload();
+    });
+  }
+});
 </script>
 {% endblock %} 
