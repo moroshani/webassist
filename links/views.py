@@ -94,7 +94,10 @@ def psi_reports_list(request, link_id):
     if trend_start and trend_end:
         trend_start_dt = datetime.strptime(trend_start, "%Y-%m-%d")
         trend_end_dt = datetime.strptime(trend_end, "%Y-%m-%d") + timedelta(days=1)
-        trend_reports = reports.filter(fetch_time__gte=trend_start_dt, fetch_time__lt=trend_end_dt)
+        trend_reports = reports.filter(
+            fetch_time__gte=trend_start_dt, fetch_time__lt=trend_end_dt
+        )
+
         def get_stats(qs):
             return {
                 "avg": qs.aggregate(
@@ -118,19 +121,52 @@ def psi_reports_list(request, link_id):
                 "points": [
                     {
                         "date": r.fetch_time.strftime("%Y-%m-%d %H:%M"),
-                        "performance": r.category_scores.performance if hasattr(r, "category_scores") and r.category_scores else None,
-                        "accessibility": r.category_scores.accessibility if hasattr(r, "category_scores") and r.category_scores else None,
-                        "best_practices": r.category_scores.best_practices if hasattr(r, "category_scores") and r.category_scores else None,
-                        "seo": r.category_scores.seo if hasattr(r, "category_scores") and r.category_scores else None,
+                        "performance": (
+                            r.category_scores.performance
+                            if hasattr(r, "category_scores") and r.category_scores
+                            else None
+                        ),
+                        "accessibility": (
+                            r.category_scores.accessibility
+                            if hasattr(r, "category_scores") and r.category_scores
+                            else None
+                        ),
+                        "best_practices": (
+                            r.category_scores.best_practices
+                            if hasattr(r, "category_scores") and r.category_scores
+                            else None
+                        ),
+                        "seo": (
+                            r.category_scores.seo
+                            if hasattr(r, "category_scores") and r.category_scores
+                            else None
+                        ),
                         "strategy": r.strategy,
-                        "fcp": r.field_metrics.fcp_ms if hasattr(r, "field_metrics") and r.field_metrics else None,
-                        "lcp": r.field_metrics.lcp_ms if hasattr(r, "field_metrics") and r.field_metrics else None,
-                        "cls": r.field_metrics.cls if hasattr(r, "field_metrics") and r.field_metrics else None,
-                        "ttfb": r.field_metrics.ttfb_ms if hasattr(r, "field_metrics") and r.field_metrics else None,
+                        "fcp": (
+                            r.field_metrics.fcp_ms
+                            if hasattr(r, "field_metrics") and r.field_metrics
+                            else None
+                        ),
+                        "lcp": (
+                            r.field_metrics.lcp_ms
+                            if hasattr(r, "field_metrics") and r.field_metrics
+                            else None
+                        ),
+                        "cls": (
+                            r.field_metrics.cls
+                            if hasattr(r, "field_metrics") and r.field_metrics
+                            else None
+                        ),
+                        "ttfb": (
+                            r.field_metrics.ttfb_ms
+                            if hasattr(r, "field_metrics") and r.field_metrics
+                            else None
+                        ),
                     }
                     for r in qs.order_by("fetch_time")
                 ],
             }
+
         trend_data = {
             "mobile": get_stats(trend_reports.filter(strategy="mobile")),
             "desktop": get_stats(trend_reports.filter(strategy="desktop")),
@@ -143,15 +179,19 @@ def psi_reports_list(request, link_id):
     compare_end2 = request.GET.get("compare_end2")
     compare_data = None
     if compare_start1 and compare_end1 and compare_start2 and compare_end2:
+
         def get_period_stats(start, end):
             start_dt = datetime.strptime(start, "%Y-%m-%d")
             end_dt = datetime.strptime(end, "%Y-%m-%d") + timedelta(days=1)
-            period_reports = reports.filter(fetch_time__gte=start_dt, fetch_time__lt=end_dt)
+            period_reports = reports.filter(
+                fetch_time__gte=start_dt, fetch_time__lt=end_dt
+            )
             return {
                 "mobile": get_stats(period_reports.filter(strategy="mobile")),
                 "desktop": get_stats(period_reports.filter(strategy="desktop")),
                 "reports": period_reports.order_by("fetch_time"),
             }
+
         compare_data = {
             "period1": get_period_stats(compare_start1, compare_end1),
             "period2": get_period_stats(compare_start2, compare_end2),
@@ -351,7 +391,11 @@ def dashboard(request):
         ssl_grade = None
         ssl_labs_status = None
         if last_ssl:
-            ssl_status = not last_ssl.is_expired and not last_ssl.is_self_signed and not last_ssl.errors
+            ssl_status = (
+                not last_ssl.is_expired
+                and not last_ssl.is_self_signed
+                and not last_ssl.errors
+            )
             ssl_last_checked = last_ssl.checked_at
             ssl_expiry = last_ssl.not_after
             ssl_warnings = last_ssl.warnings
@@ -367,7 +411,9 @@ def dashboard(request):
             {
                 "link": link,
                 "psi_status": (
-                    last_psi.raw_json["lighthouseResult"]["categories"]["performance"]["score"]
+                    last_psi.raw_json["lighthouseResult"]["categories"]["performance"][
+                        "score"
+                    ]
                     if last_psi and last_psi.raw_json
                     else None
                 ),
@@ -523,7 +569,9 @@ def features_page(request, link_id):
         },
         # Add more features here as you implement them
     ]
-    return render(request, "links/features_page.html", {"link": link, "features": features})
+    return render(
+        request, "links/features_page.html", {"link": link, "features": features}
+    )
 
 
 @login_required
@@ -550,6 +598,7 @@ def uptime_feature_run(request, link_id):
         tags = monitor.get("tags", "")
         # Raw JSON
         import json
+
         raw_json = json.dumps(monitor, indent=2)
         context = {
             "link": link,
@@ -597,7 +646,12 @@ def uptime_history(request, link_id):
         if trend_start and trend_end:
             trend_start_dt = datetime.strptime(trend_start, "%Y-%m-%d")
             trend_end_dt = datetime.strptime(trend_end, "%Y-%m-%d") + timedelta(days=1)
-            trend_logs = [log for log in monitor.get("logs", []) if log.get("datetime") and trend_start <= log["datetime"][:10] <= trend_end]
+            trend_logs = [
+                log
+                for log in monitor.get("logs", [])
+                if log.get("datetime")
+                and trend_start <= log["datetime"][:10] <= trend_end
+            ]
             # Uptime %: count Up vs. Down events
             up_count = sum(1 for log in trend_logs if log.get("type") == 2)
             down_count = sum(1 for log in trend_logs if log.get("type") == 1)
@@ -614,10 +668,17 @@ def uptime_history(request, link_id):
                 else:
                     current = 0
             # Response time stats
-            response_times = [rt.get("value") for log in trend_logs for rt in log.get("response_times", []) if rt.get("value") is not None]
+            response_times = [
+                rt.get("value")
+                for log in trend_logs
+                for rt in log.get("response_times", [])
+                if rt.get("value") is not None
+            ]
             min_response = min(response_times) if response_times else None
             max_response = max(response_times) if response_times else None
-            avg_response = sum(response_times) / len(response_times) if response_times else None
+            avg_response = (
+                sum(response_times) / len(response_times) if response_times else None
+            )
             # Prepare time series for chart
             points = [
                 {"date": log["datetime"][:16], "status": log.get("type")}
@@ -640,10 +701,15 @@ def uptime_history(request, link_id):
         compare_end2 = request.GET.get("compare_end2")
         compare_data = None
         if compare_start1 and compare_end1 and compare_start2 and compare_end2:
+
             def get_period_stats(start, end):
                 start_dt = datetime.strptime(start, "%Y-%m-%d")
                 end_dt = datetime.strptime(end, "%Y-%m-%d") + timedelta(days=1)
-                period_logs = [log for log in monitor.get("logs", []) if log.get("datetime") and start <= log["datetime"][:10] <= end]
+                period_logs = [
+                    log
+                    for log in monitor.get("logs", [])
+                    if log.get("datetime") and start <= log["datetime"][:10] <= end
+                ]
                 up_count = sum(1 for log in period_logs if log.get("type") == 2)
                 down_count = sum(1 for log in period_logs if log.get("type") == 1)
                 total_checks = len(period_logs)
@@ -661,10 +727,19 @@ def uptime_history(request, link_id):
                     {"date": log["datetime"][:16], "status": log.get("type")}
                     for log in period_logs
                 ]
-                response_times = [rt.get("value") for log in period_logs for rt in log.get("response_times", []) if rt.get("value") is not None]
+                response_times = [
+                    rt.get("value")
+                    for log in period_logs
+                    for rt in log.get("response_times", [])
+                    if rt.get("value") is not None
+                ]
                 min_response = min(response_times) if response_times else None
                 max_response = max(response_times) if response_times else None
-                avg_response = sum(response_times) / len(response_times) if response_times else None
+                avg_response = (
+                    sum(response_times) / len(response_times)
+                    if response_times
+                    else None
+                )
                 return {
                     "uptime_percent": uptime_percent,
                     "downtime_events": down_count,
@@ -676,6 +751,7 @@ def uptime_history(request, link_id):
                     "max_response": max_response,
                     "avg_response": avg_response,
                 }
+
             compare_data = {
                 "period1": get_period_stats(compare_start1, compare_end1),
                 "period2": get_period_stats(compare_start2, compare_end2),
@@ -709,15 +785,19 @@ def export_uptime_logs_csv(request, link_id):
     monitor = UptimeRobotService.get_monitor_status(link, request.user)
     logs = monitor.get("logs", [])
     response = HttpResponse(content_type="text/csv")
-    response["Content-Disposition"] = f'attachment; filename="uptime_logs_{link_id}.csv"'
+    response["Content-Disposition"] = (
+        f'attachment; filename="uptime_logs_{link_id}.csv"'
+    )
     writer = csv.writer(response)
     writer.writerow(["datetime", "type", "reason"])
     for log in logs:
-        writer.writerow([
-            log.get("datetime"),
-            log.get("type"),
-            log.get("reason", {}).get("detail", "")
-        ])
+        writer.writerow(
+            [
+                log.get("datetime"),
+                log.get("type"),
+                log.get("reason", {}).get("detail", ""),
+            ]
+        )
     return response
 
 
@@ -756,16 +836,22 @@ def settings_view(request):
             if field in request.POST:
                 value = request.POST.get(field).strip()
                 if value:
-                    obj, created = UserAPIKey.objects.get_or_create(user=user, service=service["key"])
+                    obj, created = UserAPIKey.objects.get_or_create(
+                        user=user, service=service["key"]
+                    )
                     obj.key = value
                     obj.status = "unknown"
                     obj.save()
                     messages.success(request, f"API key for {service['name']} saved.")
         return redirect("settings")
-    return render(request, "links/settings.html", {
-        "services": SERVICES,
-        "keys": keys,
-    })
+    return render(
+        request,
+        "links/settings.html",
+        {
+            "services": SERVICES,
+            "keys": keys,
+        },
+    )
 
 
 @login_required
@@ -780,145 +866,179 @@ def ssl_labs_feature_run(request, link_id):
             error = str(e)
     # Always show the latest SSL Labs scan result
     latest_scan = link.ssllabs_scans.order_by("-scanned_at").first()
-    return render(request, "links/ssl_labs_feature_run.html", {
-        "link": link,
-        "scan": scan or latest_scan,
-        "error": error,
-    })
+    return render(
+        request,
+        "links/ssl_labs_feature_run.html",
+        {
+            "link": link,
+            "scan": scan or latest_scan,
+            "error": error,
+        },
+    )
 
 
 @login_required
 def ssl_history(request, link_id):
     link = get_object_or_404(Link, id=link_id, user=request.user)
-    checks = link.ssl_checks.order_by('-checked_at')
+    checks = link.ssl_checks.order_by("-checked_at")
     # Trend analytics
-    trend_start = request.GET.get('trend_start')
-    trend_end = request.GET.get('trend_end')
+    trend_start = request.GET.get("trend_start")
+    trend_end = request.GET.get("trend_end")
     trend_data = None
     if trend_start and trend_end:
         trend_start_dt = datetime.strptime(trend_start, "%Y-%m-%d")
         trend_end_dt = datetime.strptime(trend_end, "%Y-%m-%d") + timedelta(days=1)
-        trend_checks = checks.filter(checked_at__gte=trend_start_dt, checked_at__lt=trend_end_dt)
+        trend_checks = checks.filter(
+            checked_at__gte=trend_start_dt, checked_at__lt=trend_end_dt
+        )
         trend_data = {
-            'min_expiry': trend_checks.aggregate(Min('not_after'))['not_after__min'],
-            'max_expiry': trend_checks.aggregate(Max('not_after'))['not_after__max'],
-            'count': trend_checks.count(),
-            'points': [
+            "min_expiry": trend_checks.aggregate(Min("not_after"))["not_after__min"],
+            "max_expiry": trend_checks.aggregate(Max("not_after"))["not_after__max"],
+            "count": trend_checks.count(),
+            "points": [
                 {
-                    'date': c.checked_at.strftime('%Y-%m-%d %H:%M'),
-                    'expiry': c.not_after,
-                    'warnings': c.warnings,
-                    'errors': c.errors,
-                } for c in trend_checks.order_by('checked_at')
-            ]
+                    "date": c.checked_at.strftime("%Y-%m-%d %H:%M"),
+                    "expiry": c.not_after,
+                    "warnings": c.warnings,
+                    "errors": c.errors,
+                }
+                for c in trend_checks.order_by("checked_at")
+            ],
         }
     # Compare analytics
-    compare_start1 = request.GET.get('compare_start1')
-    compare_end1 = request.GET.get('compare_end1')
-    compare_start2 = request.GET.get('compare_start2')
-    compare_end2 = request.GET.get('compare_end2')
+    compare_start1 = request.GET.get("compare_start1")
+    compare_end1 = request.GET.get("compare_end1")
+    compare_start2 = request.GET.get("compare_start2")
+    compare_end2 = request.GET.get("compare_end2")
     compare_data = None
     if compare_start1 and compare_end1 and compare_start2 and compare_end2:
+
         def get_period_stats(start, end):
             start_dt = datetime.strptime(start, "%Y-%m-%d")
             end_dt = datetime.strptime(end, "%Y-%m-%d") + timedelta(days=1)
-            period_checks = checks.filter(checked_at__gte=start_dt, checked_at__lt=end_dt)
+            period_checks = checks.filter(
+                checked_at__gte=start_dt, checked_at__lt=end_dt
+            )
             return {
-                'min_expiry': period_checks.aggregate(Min('not_after'))['not_after__min'],
-                'max_expiry': period_checks.aggregate(Max('not_after'))['not_after__max'],
-                'count': period_checks.count(),
-                'points': [
+                "min_expiry": period_checks.aggregate(Min("not_after"))[
+                    "not_after__min"
+                ],
+                "max_expiry": period_checks.aggregate(Max("not_after"))[
+                    "not_after__max"
+                ],
+                "count": period_checks.count(),
+                "points": [
                     {
-                        'date': c.checked_at.strftime('%Y-%m-%d %H:%M'),
-                        'expiry': c.not_after,
-                        'warnings': c.warnings,
-                        'errors': c.errors,
-                    } for c in period_checks.order_by('checked_at')
-                ]
+                        "date": c.checked_at.strftime("%Y-%m-%d %H:%M"),
+                        "expiry": c.not_after,
+                        "warnings": c.warnings,
+                        "errors": c.errors,
+                    }
+                    for c in period_checks.order_by("checked_at")
+                ],
             }
+
         compare_data = {
-            'period1': get_period_stats(compare_start1, compare_end1),
-            'period2': get_period_stats(compare_start2, compare_end2),
+            "period1": get_period_stats(compare_start1, compare_end1),
+            "period2": get_period_stats(compare_start2, compare_end2),
         }
-    return render(request, 'links/ssl_history.html', {
-        'link': link,
-        'checks': checks,
-        'trend_data': trend_data,
-        'trend_start': trend_start,
-        'trend_end': trend_end,
-        'compare_data': compare_data,
-        'compare_start1': compare_start1,
-        'compare_end1': compare_end1,
-        'compare_start2': compare_start2,
-        'compare_end2': compare_end2,
-    })
+    return render(
+        request,
+        "links/ssl_history.html",
+        {
+            "link": link,
+            "checks": checks,
+            "trend_data": trend_data,
+            "trend_start": trend_start,
+            "trend_end": trend_end,
+            "compare_data": compare_data,
+            "compare_start1": compare_start1,
+            "compare_end1": compare_end1,
+            "compare_start2": compare_start2,
+            "compare_end2": compare_end2,
+        },
+    )
 
 
 @login_required
 def ssl_labs_history(request, link_id):
     link = get_object_or_404(Link, id=link_id, user=request.user)
-    scans = link.ssllabs_scans.order_by('-scanned_at')
+    scans = link.ssllabs_scans.order_by("-scanned_at")
     # Trend analytics
-    trend_start = request.GET.get('trend_start')
-    trend_end = request.GET.get('trend_end')
+    trend_start = request.GET.get("trend_start")
+    trend_end = request.GET.get("trend_end")
     trend_data = None
     if trend_start and trend_end:
         trend_start_dt = datetime.strptime(trend_start, "%Y-%m-%d")
         trend_end_dt = datetime.strptime(trend_end, "%Y-%m-%d") + timedelta(days=1)
-        trend_scans = scans.filter(scanned_at__gte=trend_start_dt, scanned_at__lt=trend_end_dt)
+        trend_scans = scans.filter(
+            scanned_at__gte=trend_start_dt, scanned_at__lt=trend_end_dt
+        )
         trend_data = {
-            'min_grade': min([s.grade for s in trend_scans if s.grade], default=None),
-            'max_grade': max([s.grade for s in trend_scans if s.grade], default=None),
-            'count': trend_scans.count(),
-            'points': [
+            "min_grade": min([s.grade for s in trend_scans if s.grade], default=None),
+            "max_grade": max([s.grade for s in trend_scans if s.grade], default=None),
+            "count": trend_scans.count(),
+            "points": [
                 {
-                    'date': s.scanned_at.strftime('%Y-%m-%d %H:%M'),
-                    'grade': s.grade,
-                    'status': s.status,
-                    'vulnerabilities': s.vulnerabilities,
-                } for s in trend_scans.order_by('scanned_at')
-            ]
+                    "date": s.scanned_at.strftime("%Y-%m-%d %H:%M"),
+                    "grade": s.grade,
+                    "status": s.status,
+                    "vulnerabilities": s.vulnerabilities,
+                }
+                for s in trend_scans.order_by("scanned_at")
+            ],
         }
     # Compare analytics
-    compare_start1 = request.GET.get('compare_start1')
-    compare_end1 = request.GET.get('compare_end1')
-    compare_start2 = request.GET.get('compare_start2')
-    compare_end2 = request.GET.get('compare_end2')
+    compare_start1 = request.GET.get("compare_start1")
+    compare_end1 = request.GET.get("compare_end1")
+    compare_start2 = request.GET.get("compare_start2")
+    compare_end2 = request.GET.get("compare_end2")
     compare_data = None
     if compare_start1 and compare_end1 and compare_start2 and compare_end2:
+
         def get_period_stats(start, end):
             start_dt = datetime.strptime(start, "%Y-%m-%d")
             end_dt = datetime.strptime(end, "%Y-%m-%d") + timedelta(days=1)
             period_scans = scans.filter(scanned_at__gte=start_dt, scanned_at__lt=end_dt)
             return {
-                'min_grade': min([s.grade for s in period_scans if s.grade], default=None),
-                'max_grade': max([s.grade for s in period_scans if s.grade], default=None),
-                'count': period_scans.count(),
-                'points': [
+                "min_grade": min(
+                    [s.grade for s in period_scans if s.grade], default=None
+                ),
+                "max_grade": max(
+                    [s.grade for s in period_scans if s.grade], default=None
+                ),
+                "count": period_scans.count(),
+                "points": [
                     {
-                        'date': s.scanned_at.strftime('%Y-%m-%d %H:%M'),
-                        'grade': s.grade,
-                        'status': s.status,
-                        'vulnerabilities': s.vulnerabilities,
-                    } for s in period_scans.order_by('scanned_at')
-                ]
+                        "date": s.scanned_at.strftime("%Y-%m-%d %H:%M"),
+                        "grade": s.grade,
+                        "status": s.status,
+                        "vulnerabilities": s.vulnerabilities,
+                    }
+                    for s in period_scans.order_by("scanned_at")
+                ],
             }
+
         compare_data = {
-            'period1': get_period_stats(compare_start1, compare_end1),
-            'period2': get_period_stats(compare_start2, compare_end2),
+            "period1": get_period_stats(compare_start1, compare_end1),
+            "period2": get_period_stats(compare_start2, compare_end2),
         }
-    return render(request, 'links/ssl_labs_history.html', {
-        'link': link,
-        'scans': scans,
-        'trend_data': trend_data,
-        'trend_start': trend_start,
-        'trend_end': trend_end,
-        'compare_data': compare_data,
-        'compare_start1': compare_start1,
-        'compare_end1': compare_end1,
-        'compare_start2': compare_start2,
-        'compare_end2': compare_end2,
-    })
+    return render(
+        request,
+        "links/ssl_labs_history.html",
+        {
+            "link": link,
+            "scans": scans,
+            "trend_data": trend_data,
+            "trend_start": trend_start,
+            "trend_end": trend_end,
+            "compare_data": compare_data,
+            "compare_start1": compare_start1,
+            "compare_end1": compare_end1,
+            "compare_start2": compare_start2,
+            "compare_end2": compare_end2,
+        },
+    )
 
 
 @login_required
@@ -933,8 +1053,12 @@ def ssl_feature_run(request, link_id):
             error = str(e)
     # Always show the latest SSLCheck result
     latest_check = link.ssl_checks.order_by("-checked_at").first()
-    return render(request, "links/ssl_feature_run.html", {
-        "link": link,
-        "ssl_check": ssl_check or latest_check,
-        "error": error,
-    })
+    return render(
+        request,
+        "links/ssl_feature_run.html",
+        {
+            "link": link,
+            "ssl_check": ssl_check or latest_check,
+            "error": error,
+        },
+    )

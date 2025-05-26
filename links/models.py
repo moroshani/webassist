@@ -171,6 +171,7 @@ class UserAPIKey(models.Model):
 
 class SSLCheck(models.Model):
     """Result of a local SSL certificate check for a site."""
+
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="ssl_checks")
     link = models.ForeignKey(Link, on_delete=models.CASCADE, related_name="ssl_checks")
     checked_at = models.DateTimeField(auto_now_add=True)
@@ -205,8 +206,13 @@ class SSLCheck(models.Model):
 
 class SSLLabsScan(models.Model):
     """Result of an SSL Labs advanced scan for a site."""
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="ssllabs_scans")
-    link = models.ForeignKey(Link, on_delete=models.CASCADE, related_name="ssllabs_scans")
+
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="ssllabs_scans"
+    )
+    link = models.ForeignKey(
+        Link, on_delete=models.CASCADE, related_name="ssllabs_scans"
+    )
     scanned_at = models.DateTimeField(auto_now_add=True)
     endpoint = models.CharField(max_length=255, blank=True)  # IP or hostname
     grade = models.CharField(max_length=4, blank=True)
@@ -230,7 +236,7 @@ class SSLLabsScan(models.Model):
     hsts_preload = models.BooleanField(default=False)
     forward_secrecy = models.BooleanField(default=False)
     protocols = models.TextField(blank=True)  # comma-separated
-    ciphers = models.TextField(blank=True)    # comma-separated
+    ciphers = models.TextField(blank=True)  # comma-separated
     vulnerabilities = models.TextField(blank=True)
     # Warnings and errors
     warnings = models.TextField(blank=True)

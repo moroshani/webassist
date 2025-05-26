@@ -6,23 +6,23 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('links', '0001_initial'),
+        ("links", "0001_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='link',
-            name='uptime_last_checked',
+            model_name="link",
+            name="uptime_last_checked",
             field=models.DateTimeField(blank=True, null=True),
         ),
         migrations.AddField(
-            model_name='link',
-            name='uptime_last_status',
+            model_name="link",
+            name="uptime_last_status",
             field=models.CharField(blank=True, max_length=32, null=True),
         ),
         migrations.AddField(
-            model_name='link',
-            name='uptime_monitor_id',
+            model_name="link",
+            name="uptime_monitor_id",
             field=models.CharField(blank=True, max_length=32, null=True),
         ),
     ]

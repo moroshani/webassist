@@ -28,10 +28,14 @@ class PSIService:
         try:
             key_obj = UserAPIKey.objects.get(user=user, service="psi")
             if not key_obj.key:
-                raise Exception("No Google PSI API key set for your account. Please add it in Settings.")
+                raise Exception(
+                    "No Google PSI API key set for your account. Please add it in Settings."
+                )
             return key_obj.key
         except UserAPIKey.DoesNotExist:
-            raise Exception("No Google PSI API key set for your account. Please add it in Settings.")
+            raise Exception(
+                "No Google PSI API key set for your account. Please add it in Settings."
+            )
 
     @classmethod
     def fetch_report(cls, url, user, strategy="mobile"):
@@ -187,10 +191,14 @@ class UptimeRobotService:
         try:
             key_obj = UserAPIKey.objects.get(user=user, service="uptimerobot")
             if not key_obj.key:
-                raise Exception("No UptimeRobot API key set for your account. Please add it in Settings.")
+                raise Exception(
+                    "No UptimeRobot API key set for your account. Please add it in Settings."
+                )
             return key_obj.key
         except UserAPIKey.DoesNotExist:
-            raise Exception("No UptimeRobot API key set for your account. Please add it in Settings.")
+            raise Exception(
+                "No UptimeRobot API key set for your account. Please add it in Settings."
+            )
 
     @classmethod
     def ensure_monitor(cls, link, user):
@@ -266,8 +274,9 @@ class SSLService:
         Perform a live SSL certificate inspection for the given link, extract all possible details, and store in SSLCheck.
         """
         import idna
+
         url = link.url
-        hostname = url.split('//')[-1].split('/')[0].split(':')[0]
+        hostname = url.split("//")[-1].split("/")[0].split(":")[0]
         port = 443
         warnings = []
         errors = []
@@ -277,18 +286,18 @@ class SSLService:
         is_expired = False
         is_weak_signature = False
         is_short_key = False
-        san = ''
-        ocsp_url = ''
-        crl_url = ''
-        raw_cert = ''
-        subject = ''
-        issuer = ''
-        serial_number = ''
+        san = ""
+        ocsp_url = ""
+        crl_url = ""
+        raw_cert = ""
+        subject = ""
+        issuer = ""
+        serial_number = ""
         version = None
         not_before = None
         not_after = None
-        signature_algorithm = ''
-        public_key_type = ''
+        signature_algorithm = ""
+        public_key_type = ""
         public_key_bits = None
         try:
             ctx = ssl.create_default_context()
@@ -298,39 +307,49 @@ class SSLService:
                     cert = ssl.DER_cert_to_PEM_cert(der_cert)
                     x509 = ssl._ssl._test_decode_cert(cert)
                     raw_cert = cert
-                    subject = str(x509.get('subject', ''))
-                    issuer = str(x509.get('issuer', ''))
-                    serial_number = str(x509.get('serialNumber', ''))
-                    version = x509.get('version')
-                    not_before = datetime.strptime(x509['notBefore'], '%b %d %H:%M:%S %Y %Z') if 'notBefore' in x509 else None
-                    not_after = datetime.strptime(x509['notAfter'], '%b %d %H:%M:%S %Y %Z') if 'notAfter' in x509 else None
-                    san = ','.join(x509.get('subjectAltName', []))
-                    signature_algorithm = x509.get('signatureAlgorithm', '')
-                    pubkey = x509.get('subjectPublicKeyInfo', {})
-                    public_key_type = pubkey.get('algorithm', '')
-                    public_key_bits = pubkey.get('key_size') if 'key_size' in pubkey else None
+                    subject = str(x509.get("subject", ""))
+                    issuer = str(x509.get("issuer", ""))
+                    serial_number = str(x509.get("serialNumber", ""))
+                    version = x509.get("version")
+                    not_before = (
+                        datetime.strptime(x509["notBefore"], "%b %d %H:%M:%S %Y %Z")
+                        if "notBefore" in x509
+                        else None
+                    )
+                    not_after = (
+                        datetime.strptime(x509["notAfter"], "%b %d %H:%M:%S %Y %Z")
+                        if "notAfter" in x509
+                        else None
+                    )
+                    san = ",".join(x509.get("subjectAltName", []))
+                    signature_algorithm = x509.get("signatureAlgorithm", "")
+                    pubkey = x509.get("subjectPublicKeyInfo", {})
+                    public_key_type = pubkey.get("algorithm", "")
+                    public_key_bits = (
+                        pubkey.get("key_size") if "key_size" in pubkey else None
+                    )
                     # OCSP/CRL URLs
-                    for ext in x509.get('extensions', []):
-                        if ext['name'] == 'authorityInfoAccess':
-                            if 'OCSP' in ext['value']:
-                                ocsp_url = ext['value']['OCSP']
-                        if ext['name'] == 'crlDistributionPoints':
-                            crl_url = ext['value']
+                    for ext in x509.get("extensions", []):
+                        if ext["name"] == "authorityInfoAccess":
+                            if "OCSP" in ext["value"]:
+                                ocsp_url = ext["value"]["OCSP"]
+                        if ext["name"] == "crlDistributionPoints":
+                            crl_url = ext["value"]
                     # Chain info (not available via stdlib, so set to 1)
                     # Self-signed check
-                    is_self_signed = (subject == issuer)
+                    is_self_signed = subject == issuer
                     # Expiry check
                     if not_after and not_after < datetime.utcnow():
                         is_expired = True
-                        warnings.append('Certificate is expired.')
+                        warnings.append("Certificate is expired.")
                     # Weak signature
-                    if 'sha1' in signature_algorithm.lower():
+                    if "sha1" in signature_algorithm.lower():
                         is_weak_signature = True
-                        warnings.append('Weak signature algorithm (SHA1)')
+                        warnings.append("Weak signature algorithm (SHA1)")
                     # Short key
                     if public_key_bits and public_key_bits < 2048:
                         is_short_key = True
-                        warnings.append('Short public key (<2048 bits)')
+                        warnings.append("Short public key (<2048 bits)")
         except Exception as e:
             errors.append(str(e))
         ssl_check = SSLCheck.objects.create(
@@ -354,8 +373,8 @@ class SSLService:
             is_expired=is_expired,
             is_weak_signature=is_weak_signature,
             is_short_key=is_short_key,
-            warnings='; '.join(warnings),
-            errors='; '.join(errors),
+            warnings="; ".join(warnings),
+            errors="; ".join(errors),
             raw_cert=raw_cert,
         )
         return ssl_check
@@ -371,8 +390,13 @@ class SSLLabsService:
         """
         Start or fetch an SSL Labs scan for the given link, poll if necessary, extract all details, and store in SSLLabsScan.
         """
-        hostname = link.url.split('//')[-1].split('/')[0].split(':')[0]
-        params = {"host": hostname, "all": "done", "fromCache": "on", "ignoreMismatch": "on"}
+        hostname = link.url.split("//")[-1].split("/")[0].split(":")[0]
+        params = {
+            "host": hostname,
+            "all": "done",
+            "fromCache": "on",
+            "ignoreMismatch": "on",
+        }
         poll_count = 0
         error = None
         while poll_count < SSLLabsService.MAX_POLL:
@@ -427,27 +451,46 @@ class SSLLabsService:
                 subject=cert.get("subject", ""),
                 issuer=cert.get("issuerLabel", ""),
                 serial_number=cert.get("serialNumber", ""),
-                not_before=datetime.utcfromtimestamp(cert["notBefore"] / 1000) if cert.get("notBefore") else None,
-                not_after=datetime.utcfromtimestamp(cert["notAfter"] / 1000) if cert.get("notAfter") else None,
-                san=','.join(cert.get("altNames", [])),
+                not_before=(
+                    datetime.utcfromtimestamp(cert["notBefore"] / 1000)
+                    if cert.get("notBefore")
+                    else None
+                ),
+                not_after=(
+                    datetime.utcfromtimestamp(cert["notAfter"] / 1000)
+                    if cert.get("notAfter")
+                    else None
+                ),
+                san=",".join(cert.get("altNames", [])),
                 signature_algorithm=cert.get("sigAlg", ""),
                 public_key_type=cert.get("keyAlg", ""),
                 public_key_bits=cert.get("keySize"),
-                ocsp_url=cert.get("ocspUris", [""])[0] if cert.get("ocspUris") else '',
-                crl_url=cert.get("crlURIs", [""])[0] if cert.get("crlURIs") else '',
+                ocsp_url=cert.get("ocspUris", [""])[0] if cert.get("ocspUris") else "",
+                crl_url=cert.get("crlURIs", [""])[0] if cert.get("crlURIs") else "",
                 chain_issues=details.get("chainIssues", ""),
                 hsts=details.get("hstsPolicy", {}).get("status", False) == 1,
                 hsts_max_age=details.get("hstsPolicy", {}).get("maxAge"),
                 hsts_preload=details.get("hstsPreload", False),
                 forward_secrecy=details.get("forwardSecrecy", 0) == 2,
-                protocols=','.join([p.get("name", "") for p in details.get("protocols", [])]),
-                ciphers=','.join([c.get("name", "") for c in details.get("suites", {}).get("list", [])]),
-                vulnerabilities=','.join([k for k, v in details.items() if k.startswith("vuln") and v]),
-                warnings='',
-                errors='',
+                protocols=",".join(
+                    [p.get("name", "") for p in details.get("protocols", [])]
+                ),
+                ciphers=",".join(
+                    [
+                        c.get("name", "")
+                        for c in details.get("suites", {}).get("list", [])
+                    ]
+                ),
+                vulnerabilities=",".join(
+                    [k for k, v in details.items() if k.startswith("vuln") and v]
+                ),
+                warnings="",
+                errors="",
                 raw_json=ep,
             )
             scans.append(scan)
+
+
 import requests
 from django.conf import settings
 from django.utils import timezone
@@ -476,10 +519,14 @@ class PSIService:
         try:
             key_obj = UserAPIKey.objects.get(user=user, service="psi")
             if not key_obj.key:
-                raise Exception("No Google PSI API key set for your account. Please add it in Settings.")
+                raise Exception(
+                    "No Google PSI API key set for your account. Please add it in Settings."
+                )
             return key_obj.key
         except UserAPIKey.DoesNotExist:
-            raise Exception("No Google PSI API key set for your account. Please add it in Settings.")
+            raise Exception(
+                "No Google PSI API key set for your account. Please add it in Settings."
+            )
 
     @classmethod
     def fetch_report(cls, url, user, strategy="mobile"):
@@ -635,10 +682,14 @@ class UptimeRobotService:
         try:
             key_obj = UserAPIKey.objects.get(user=user, service="uptimerobot")
             if not key_obj.key:
-                raise Exception("No UptimeRobot API key set for your account. Please add it in Settings.")
+                raise Exception(
+                    "No UptimeRobot API key set for your account. Please add it in Settings."
+                )
             return key_obj.key
         except UserAPIKey.DoesNotExist:
-            raise Exception("No UptimeRobot API key set for your account. Please add it in Settings.")
+            raise Exception(
+                "No UptimeRobot API key set for your account. Please add it in Settings."
+            )
 
     @classmethod
     def ensure_monitor(cls, link, user):
@@ -714,8 +765,9 @@ class SSLService:
         Perform a live SSL certificate inspection for the given link, extract all possible details, and store in SSLCheck.
         """
         import idna
+
         url = link.url
-        hostname = url.split('//')[-1].split('/')[0].split(':')[0]
+        hostname = url.split("//")[-1].split("/")[0].split(":")[0]
         port = 443
         warnings = []
         errors = []
@@ -725,18 +777,18 @@ class SSLService:
         is_expired = False
         is_weak_signature = False
         is_short_key = False
-        san = ''
-        ocsp_url = ''
-        crl_url = ''
-        raw_cert = ''
-        subject = ''
-        issuer = ''
-        serial_number = ''
+        san = ""
+        ocsp_url = ""
+        crl_url = ""
+        raw_cert = ""
+        subject = ""
+        issuer = ""
+        serial_number = ""
         version = None
         not_before = None
         not_after = None
-        signature_algorithm = ''
-        public_key_type = ''
+        signature_algorithm = ""
+        public_key_type = ""
         public_key_bits = None
         try:
             ctx = ssl.create_default_context()
@@ -746,39 +798,49 @@ class SSLService:
                     cert = ssl.DER_cert_to_PEM_cert(der_cert)
                     x509 = ssl._ssl._test_decode_cert(cert)
                     raw_cert = cert
-                    subject = str(x509.get('subject', ''))
-                    issuer = str(x509.get('issuer', ''))
-                    serial_number = str(x509.get('serialNumber', ''))
-                    version = x509.get('version')
-                    not_before = datetime.strptime(x509['notBefore'], '%b %d %H:%M:%S %Y %Z') if 'notBefore' in x509 else None
-                    not_after = datetime.strptime(x509['notAfter'], '%b %d %H:%M:%S %Y %Z') if 'notAfter' in x509 else None
-                    san = ','.join(x509.get('subjectAltName', []))
-                    signature_algorithm = x509.get('signatureAlgorithm', '')
-                    pubkey = x509.get('subjectPublicKeyInfo', {})
-                    public_key_type = pubkey.get('algorithm', '')
-                    public_key_bits = pubkey.get('key_size') if 'key_size' in pubkey else None
+                    subject = str(x509.get("subject", ""))
+                    issuer = str(x509.get("issuer", ""))
+                    serial_number = str(x509.get("serialNumber", ""))
+                    version = x509.get("version")
+                    not_before = (
+                        datetime.strptime(x509["notBefore"], "%b %d %H:%M:%S %Y %Z")
+                        if "notBefore" in x509
+                        else None
+                    )
+                    not_after = (
+                        datetime.strptime(x509["notAfter"], "%b %d %H:%M:%S %Y %Z")
+                        if "notAfter" in x509
+                        else None
+                    )
+                    san = ",".join(x509.get("subjectAltName", []))
+                    signature_algorithm = x509.get("signatureAlgorithm", "")
+                    pubkey = x509.get("subjectPublicKeyInfo", {})
+                    public_key_type = pubkey.get("algorithm", "")
+                    public_key_bits = (
+                        pubkey.get("key_size") if "key_size" in pubkey else None
+                    )
                     # OCSP/CRL URLs
-                    for ext in x509.get('extensions', []):
-                        if ext['name'] == 'authorityInfoAccess':
-                            if 'OCSP' in ext['value']:
-                                ocsp_url = ext['value']['OCSP']
-                        if ext['name'] == 'crlDistributionPoints':
-                            crl_url = ext['value']
+                    for ext in x509.get("extensions", []):
+                        if ext["name"] == "authorityInfoAccess":
+                            if "OCSP" in ext["value"]:
+                                ocsp_url = ext["value"]["OCSP"]
+                        if ext["name"] == "crlDistributionPoints":
+                            crl_url = ext["value"]
                     # Chain info (not available via stdlib, so set to 1)
                     # Self-signed check
-                    is_self_signed = (subject == issuer)
+                    is_self_signed = subject == issuer
                     # Expiry check
                     if not_after and not_after < datetime.utcnow():
                         is_expired = True
-                        warnings.append('Certificate is expired.')
+                        warnings.append("Certificate is expired.")
                     # Weak signature
-                    if 'sha1' in signature_algorithm.lower():
+                    if "sha1" in signature_algorithm.lower():
                         is_weak_signature = True
-                        warnings.append('Weak signature algorithm (SHA1)')
+                        warnings.append("Weak signature algorithm (SHA1)")
                     # Short key
                     if public_key_bits and public_key_bits < 2048:
                         is_short_key = True
-                        warnings.append('Short public key (<2048 bits)')
+                        warnings.append("Short public key (<2048 bits)")
         except Exception as e:
             errors.append(str(e))
         ssl_check = SSLCheck.objects.create(
@@ -802,8 +864,8 @@ class SSLService:
             is_expired=is_expired,
             is_weak_signature=is_weak_signature,
             is_short_key=is_short_key,
-            warnings='; '.join(warnings),
-            errors='; '.join(errors),
+            warnings="; ".join(warnings),
+            errors="; ".join(errors),
             raw_cert=raw_cert,
         )
         return ssl_check
