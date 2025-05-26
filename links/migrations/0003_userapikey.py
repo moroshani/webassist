@@ -1,6 +1,6 @@
-from django.db import migrations, models
-import django_cryptography.fields
 import django.db.models.deletion
+import django_cryptography.fields
+from django.db import migrations, models
 
 
 class Migration(migrations.Migration):

@@ -1,6 +1,7 @@
 import csv
 import io
 import json
+from datetime import datetime, timedelta
 
 from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
@@ -8,17 +9,16 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth.models import User
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
+from django.db.models import Avg, Max, Min
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 from django_filters import CharFilter, FilterSet
-from django.db.models import Avg, Min, Max
-from datetime import datetime, timedelta
 
 from .models import Link, Page, PSIReport, PSIReportGroup, UserAPIKey
-from .services import PSIService, UptimeRobotService, SSLService, SSLLabsService
+from .services import PSIService, SSLLabsService, SSLService, UptimeRobotService
 
 
 class LinkFilter(FilterSet):

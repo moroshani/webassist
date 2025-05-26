@@ -1,10 +1,11 @@
+import socket
+import ssl
+import time
+from datetime import datetime
+
 import requests
 from django.conf import settings
 from django.utils import timezone
-import ssl
-import socket
-from datetime import datetime
-import time
 
 from .models import (
     Audit,
@@ -14,9 +15,9 @@ from .models import (
     Page,
     PSIReport,
     PSIReportGroup,
-    UserAPIKey,
     SSLCheck,
     SSLLabsScan,
+    UserAPIKey,
 )
 
 
@@ -491,12 +492,13 @@ class SSLLabsService:
             scans.append(scan)
 
 
+import socket
+import ssl
+from datetime import datetime
+
 import requests
 from django.conf import settings
 from django.utils import timezone
-import ssl
-import socket
-from datetime import datetime
 
 from .models import (
     Audit,
@@ -506,8 +508,8 @@ from .models import (
     Page,
     PSIReport,
     PSIReportGroup,
-    UserAPIKey,
     SSLCheck,
+    UserAPIKey,
 )
 
 
