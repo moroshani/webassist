@@ -1,3 +1,4 @@
+<!-- Triggering clean build: 2024-05-26 -->
 {% extends 'base.html' %}
 {% block title %}Dashboard | WebAssist{% endblock %}
 {% block content %}
@@ -53,14 +54,18 @@
             <td>
               {% if site.ssl_expiry %}
                 <span class="badge bg-{{ site.ssl_status|yesno:'success,danger,secondary' }}">
-              {% if site.psi_status is not None %}
-                {% if site.psi_status >= 0.9 %}
-                  <span class="badge bg-success">Good</span>
-                {% elif site.psi_status >= 0.5 %}
-                  <span class="badge bg-warning text-dark">Average</span>
-                {% else %}
-                  <span class="badge bg-danger">Poor</span>
-                {% endif %}
+                  {% if site.psi_status is not None %}
+                    {% if site.psi_status >= 0.9 %}
+                      Good
+                    {% elif site.psi_status >= 0.5 %}
+                      Average
+                    {% else %}
+                      Poor
+                    {% endif %}
+                  {% else %}
+                    Unknown
+                  {% endif %}
+                </span>
               {% else %}
                 <span class="badge bg-secondary">Unknown</span>
               {% endif %}
