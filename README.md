@@ -1,103 +1,116 @@
 # WebAssist
 
-WebAssist is a Django-based web application for managing and analyzing web links using Google's PageSpeed Insights API. It helps you monitor and improve your website's performance by providing detailed insights and recommendations.
+[![CI](https://github.com/yourusername/webassist/actions/workflows/ci.yml/badge.svg)](https://github.com/yourusername/webassist/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
+[![Django](https://img.shields.io/badge/django-4.2%2B-green.svg)](https://www.djangoproject.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Last Commit](https://img.shields.io/github/last-commit/yourusername/webassist.svg)](https://github.com/yourusername/webassist/commits/main)
+
+---
+
+WebAssist is a Django-based web assistant for monitoring, analyzing, and improving your websites. It features a unified dashboard, advanced analytics, per-user API key management, and deep SSL/security checks.
 
 ## Features
 
-- **Link Management**: Add, edit, and manage web links with titles, URLs, and descriptions
-- **Performance Analysis**: Get comprehensive PageSpeed Insights reports for both mobile and desktop
-- **Visual Reports**: View performance metrics with interactive charts and visualizations
-- **Historical Data**: Track performance changes over time with stored reports
-- **Search & Filter**: Easily find and filter links and reports
-- **Real-time Updates**: AJAX-powered refresh functionality
+- **Unified Dashboard**: Manage all your sites and see key metrics (PSI, uptime, SSL, etc.) at a glance
+- **Modular Feature Analytics**: Each feature (Uptime, PSI, SSL, SSL Labs, etc.) has History, Trend, and Compare tabs with charts and tables
+- **Per-User API Keys**: Each user manages their own API keys for all services (no global/fallback keys)
+- **Uptime Monitoring**: Live status, history, trend, and compare analytics via UptimeRobot
+- **PageSpeed Insights**: Google PSI integration with full analytics and export
+- **SSL Certificate Checks**: Local SSL inspection and advanced SSL Labs scans, with expiry/grade trends and comparison
+- **Export/Import**: Export and import links and reports as CSV/JSON
+- **User Management**: Secure authentication, social login, and user settings
+- **Modern UI**: Bootstrap 5, Chart.js, responsive design
 
 ## Technologies Used
 
-- **Backend**: Django 4.x, Python 3.x
+- **Backend**: Django 4.2+, Python 3.10+
 - **Frontend**: Bootstrap 5, Chart.js, JavaScript
-- **Database**: SQLite
-- **APIs**: Google PageSpeed Insights API v5
+- **Database**: SQLite (dev), PostgreSQL/MySQL (prod recommended)
+- **APIs**: Google PageSpeed Insights, UptimeRobot, SSL Labs
+
+## Badges
+
+- CI: GitHub Actions runs tests, lint, and type checks on every push
+- Python: 3.10+
+- Django: 4.2+
+- License: MIT
+- Last Commit: Always up to date
 
 ## Installation
 
 1. Clone the repository:
-```bash
-git clone https://github.com/yourusername/webassist.git
-cd webassist
-```
-
+   ```bash
+   git clone https://github.com/yourusername/webassist.git
+   cd webassist
+   ```
 2. Create and activate a virtual environment:
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-
+   ```bash
+   python -m venv venv
+   # On Windows:
+   venv\Scripts\activate
+   # On macOS/Linux:
+   source venv/bin/activate
+   ```
 3. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
+   ```bash
+   pip install -r requirements.txt
+   ```
 4. Set up environment variables:
-```bash
-# Create a .env file or set these in your environment
-PSI_API_KEY=your_pagespeed_insights_api_key
-DJANGO_SECRET_KEY=your_django_secret_key
-```
-
-# Note: The application will not start unless both variables are set.
-
+   - Create a `.env` file in the project root with at least:
+     ```env
+     DJANGO_SECRET_KEY=your_django_secret_key
+     PSI_API_KEY=your_pagespeed_insights_api_key
+     UPTIMEROBOT_API_KEY=your_uptimerobot_api_key
+     ```
+   - The app will not start unless these are set.
 5. Run migrations:
-```bash
-python manage.py migrate
-```
-
+   ```bash
+   python manage.py migrate
+   ```
 6. Create a superuser:
-```bash
-python manage.py createsuperuser
-```
-
+   ```bash
+   python manage.py createsuperuser
+   ```
 7. Run the development server:
-```bash
-python manage.py runserver
-```
+   ```bash
+   python manage.py runserver
+   ```
 
 ## Usage
 
-1. Access the admin interface at `/admin` to manage links
-2. View all links at `/sites/`
-3. Use the "Fetch PSI" button to get performance reports
-4. View detailed reports and metrics in the reports section
+- Access the dashboard at `/dashboard/` (default root)
+- Manage your API keys in the user settings page
+- Use the Features button for each site to access all available features (Uptime, PSI, SSL, etc.)
+- Each feature page provides History, Trend, and Compare analytics
+- Export/import links and reports from the dashboard
+- Admin interface available at `/admin/`
 
 ## Project Structure
 
 ```
 webassist/
-├── links/                    # Main application
-│   ├── models.py            # Database models
-│   ├── views.py             # View functions
-│   ├── services.py          # PSI API integration
-│   └── urls.py              # URL routing
-├── templates/               # HTML templates
-│   ├── base.html           # Base template
-│   └── links/              # App-specific templates
-├── static/                 # Static files
-│   ├── css/               # Stylesheets
-│   └── js/                # JavaScript files
-└── manage.py              # Django management script
+├── links/                    # Main Django app (models, views, services)
+├── templates/                # HTML templates (Bootstrap, modular)
+├── static/                   # Static files (CSS, JS)
+├── webassist/                # Project settings and URLs
+├── manage.py                 # Django management script
+├── requirements.txt          # Python dependencies
+└── ...
 ```
 
 ## Screenshots
 
+<!--
 ![WebAssist Screenshot](docs/screenshot.png)
+-->
+*Screenshot not included. Add `docs/screenshot.png` to display here.*
 
 ## API Endpoints
 
-- **Export Links as JSON:**
-  - `GET /sites/export/json/`
-- **Import Links from JSON:**
-  - `POST /sites/import/json/` (Content-Type: application/json, body: array of links)
-- **Export Links as CSV:**
-  - `GET /sites/export/csv/`
+- Export Links as JSON: `GET /sites/export/json/`
+- Import Links from JSON: `POST /sites/import/json/` (Content-Type: application/json)
+- Export Links as CSV: `GET /sites/export/csv/`
 
 ## Running Tests
 
@@ -107,34 +120,22 @@ pytest
 
 ## Code Style
 
-- Format code with `black .`
-- Sort imports with `isort .`
-- Type check with `mypy webassist`
+- Format code: `black .`
+- Sort imports: `isort .`
+- Type check: `mypy webassist`
 
 ## Contributing
 
-See [CONTRIBUTING.md](../CONTRIBUTING.md).
+Pull requests are welcome! Please open an issue to discuss major changes first. See [CONTRIBUTING.md](../CONTRIBUTING.md) for details.
 
-## Production Database Best Practices
+## Production Best Practices
 
-- Use PostgreSQL or MySQL in production (not SQLite).
-- Set up a managed database service or secure your DB server.
-- Use environment variables for DB credentials.
-- Run regular backups.
+- Use PostgreSQL or MySQL in production (not SQLite)
+- Set all secrets and API keys via environment variables
+- Configure logging and monitoring (Sentry, Rollbar, etc.)
+- Set up uptime monitoring for your deployed site
+- Run regular database backups
 
-## Logging & Monitoring
+## License
 
-- Configure Django logging in `settings.py` to log errors and warnings to file or external service.
-- Use a service like Sentry, Rollbar, or similar for error monitoring.
-- Set up uptime monitoring (e.g., UptimeRobot, Pingdom) for your deployed site.
-
-## Local Development with .env
-
-You can use a `.env` file in the project root to set environment variables for local development. The project uses [python-dotenv](https://pypi.org/project/python-dotenv/) to load these automatically when running `manage.py`.
-
-1. Copy `.env.example` to `.env`:
-   ```bash
-   cp .env.example .env
-   ```
-2. Edit `.env` and fill in your secrets.
-3. Run the app as usual. 
+This project is licensed under the MIT License. See [LICENSE](LICENSE). 
