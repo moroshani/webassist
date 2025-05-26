@@ -919,3 +919,22 @@ def ssl_labs_history(request, link_id):
         'compare_start2': compare_start2,
         'compare_end2': compare_end2,
     })
+
+
+@login_required
+def ssl_feature_run(request, link_id):
+    link = get_object_or_404(Link, id=link_id, user=request.user)
+    error = None
+    ssl_check = None
+    if request.method == "POST":
+        try:
+            ssl_check = SSLService.check_certificate(link, request.user)
+        except Exception as e:
+            error = str(e)
+    # Always show the latest SSLCheck result
+    latest_check = link.ssl_checks.order_by("-checked_at").first()
+    return render(request, "links/ssl_feature_run.html", {
+        "link": link,
+        "ssl_check": ssl_check or latest_check,
+        "error": error,
+    })
