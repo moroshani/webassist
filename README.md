@@ -1,10 +1,10 @@
 # WebAssist
 
-[![CI](https://github.com/yourusername/webassist/actions/workflows/ci.yml/badge.svg)](https://github.com/yourusername/webassist/actions/workflows/ci.yml)
+[![CI](https://github.com/moroshani/webassist/actions/workflows/ci.yml/badge.svg)](https://github.com/moroshani/webassist/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![Django](https://img.shields.io/badge/django-4.2%2B-green.svg)](https://www.djangoproject.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Last Commit](https://img.shields.io/github/last-commit/yourusername/webassist.svg)](https://github.com/yourusername/webassist/commits/main)
+[![Last Commit](https://img.shields.io/github/last-commit/moroshani/webassist.svg)](https://github.com/moroshani/webassist/commits/main)
 
 ---
 
@@ -41,7 +41,7 @@ WebAssist is a Django-based web assistant for monitoring, analyzing, and improvi
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/webassist.git
+   git clone https://github.com/moroshani/webassist.git
    cd webassist
    ```
 2. Create and activate a virtual environment:
