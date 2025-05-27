@@ -7,9 +7,10 @@ from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import PasswordChangeForm
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User # Should be settings.AUTH_USER_MODEL
+from django.conf import settings # Import settings
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
-from django.db.models import Avg, Max, Min, OuterRef, Subquery, F, DateTimeField, FloatField, CharField
+from django.db.models import Avg, Max, Min, OuterRef, Subquery, F, DateTimeField, FloatField, CharField, Q
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
@@ -55,6 +56,8 @@ def fetch_psi_report(request, link_id):
 @login_required
 @require_POST
 def delete_psi_report(request, report_id):
+    # This function seems to delete a single PSIReport, but the UI seems to want to delete groups.
+    # Consider if this is still needed or if delete_psi_report_group covers all use cases.
     report = get_object_or_404(PSIReport, id=report_id, user=request.user)
     report.delete()
     return JsonResponse({"status": "success"})
@@ -63,87 +66,113 @@ def delete_psi_report(request, report_id):
 @login_required
 def psi_reports_list(request, link_id):
     link = get_object_or_404(Link, id=link_id, user=request.user)
-    page = Page.objects.filter(url=link.url, user=request.user).first()
-    reports = (
-        page.psi_reports.filter(user=request.user) if page else PSIReport.objects.none()
-    )
+    page_obj_db = Page.objects.filter(url=link.url, user=request.user).first() # Renamed to avoid conflict
+    
+    reports_qs = PSIReport.objects.none()
+    if page_obj_db:
+        reports_qs = page_obj_db.psi_reports.filter(user=request.user).select_related('category_scores', 'group')
+
+
     # Server-side filtering
-    start_date = request.GET.get('startDate')
-    end_date = request.GET.get('endDate')
-    min_score = request.GET.get('minScore')
-    max_score = request.GET.get('maxScore')
-    search = request.GET.get('search')
-    if start_date:
-        reports = reports.filter(fetch_time__date__gte=start_date)
-    if end_date:
-        reports = reports.filter(fetch_time__date__lte=end_date)
-    if min_score:
-        reports = reports.filter(category_scores__performance__gte=float(min_score))
-    if max_score:
-        reports = reports.filter(category_scores__performance__lte=float(max_score))
-    if search:
-        reports = reports.filter(
-            models.Q(page__url__icontains=search) |
-            models.Q(page__user__username__icontains=search)
+    start_date_str = request.GET.get('startDate')
+    end_date_str = request.GET.get('endDate')
+    min_score_str = request.GET.get('minScore')
+    max_score_str = request.GET.get('maxScore')
+    search_query = request.GET.get('search') # Renamed
+
+    if start_date_str:
+        reports_qs = reports_qs.filter(fetch_time__date__gte=start_date_str)
+    if end_date_str:
+        reports_qs = reports_qs.filter(fetch_time__date__lte=end_date_str)
+    if min_score_str:
+        try:
+            min_score_val = float(min_score_str)
+            reports_qs = reports_qs.filter(category_scores__performance__gte=min_score_val)
+        except ValueError:
+            pass # Or handle error
+    if max_score_str:
+        try:
+            max_score_val = float(max_score_str)
+            reports_qs = reports_qs.filter(category_scores__performance__lte=max_score_val)
+        except ValueError:
+            pass # Or handle error
+    if search_query: # Use renamed variable
+        reports_qs = reports_qs.filter(
+            Q(page__url__icontains=search_query) |
+            Q(page__user__username__icontains=search_query) # Consider if user search is needed here
         )
-    mobile_reports = reports.filter(strategy="mobile")
-    desktop_reports = reports.filter(strategy="desktop")
-    paginator = Paginator(reports, 10)  # 10 reports per page
+    
+    mobile_reports = reports_qs.filter(strategy="mobile").order_by('-fetch_time')
+    desktop_reports = reports_qs.filter(strategy="desktop").order_by('-fetch_time')
+    
+    # Pagination - apply to one of the report types or a combined list if needed
+    # For now, let's assume pagination is for mobile reports as an example, or adjust as needed
+    paginator = Paginator(mobile_reports, 10)
     page_number = request.GET.get("page")
     try:
-        page_obj = paginator.page(page_number)
+        page_obj_paginated = paginator.page(page_number) # Renamed to avoid conflict
     except PageNotAnInteger:
-        page_obj = paginator.page(1)
+        page_obj_paginated = paginator.page(1)
     except EmptyPage:
-        page_obj = paginator.page(paginator.num_pages)
+        page_obj_paginated = paginator.page(paginator.num_pages)
+
     # Trend analytics
-    trend_data = get_trend_data_for_queryset(reports, 'fetch_time', group_by_field='strategy', extra_fields=['category_scores__performance', 'category_scores__accessibility', 'category_scores__best_practices', 'category_scores__seo'])
+    trend_data = get_trend_data_for_queryset(reports_qs, 'fetch_time', group_by_field='strategy', extra_fields=['category_scores__performance', 'category_scores__accessibility', 'category_scores__best_practices', 'category_scores__seo'])
+    
     # Compare analytics
     compare_start1 = request.GET.get("compare_start1")
     compare_end1 = request.GET.get("compare_end1")
     compare_start2 = request.GET.get("compare_start2")
     compare_end2 = request.GET.get("compare_end2")
-    compare_data = get_compare_data_for_queryset(reports, 'fetch_time', [(compare_start1, compare_end1), (compare_start2, compare_end2)], group_by_field='strategy', extra_fields=['category_scores__performance', 'category_scores__accessibility', 'category_scores__best_practices', 'category_scores__seo'])
+    
+    compare_periods = []
+    if compare_start1 and compare_end1:
+        compare_periods.append((compare_start1, compare_end1))
+    if compare_start2 and compare_end2:
+        compare_periods.append((compare_start2, compare_end2))
+
+    compare_data = None
+    if len(compare_periods) == 2:
+         compare_data = get_compare_data_for_queryset(reports_qs, 'fetch_time', compare_periods, group_by_field='strategy', extra_fields=['category_scores__performance', 'category_scores__accessibility', 'category_scores__best_practices', 'category_scores__seo'])
+
     return render(
         request,
         "links/psi_reports_list.html",
         {
             "link": link,
-            "reports": page_obj,
-            "mobile_reports": mobile_reports,
+            "reports": page_obj_paginated, # Use paginated object
+            "mobile_reports": mobile_reports, # Could be page_obj_paginated if paginating mobile
             "desktop_reports": desktop_reports,
-            "page_obj": page_obj,
+            "page_obj": page_obj_paginated, # Standard name for paginator object in template
             "trend_data": trend_data,
             "compare_data": compare_data,
             "compare_start1": compare_start1,
             "compare_end1": compare_end1,
             "compare_start2": compare_start2,
             "compare_end2": compare_end2,
-            "start_date": start_date,
-            "end_date": end_date,
-            "min_score": min_score,
-            "max_score": max_score,
-            "search": search,
+            "start_date": start_date_str,
+            "end_date": end_date_str,
+            "min_score": min_score_str,
+            "max_score": max_score_str,
+            "search": search_query, # Use renamed
         },
     )
 
 
 @login_required
 def psi_report_detail(request, report_id):
-    report = get_object_or_404(PSIReport, id=report_id, user=request.user)
-    field_metrics = getattr(report, "field_metrics", None)
-    lab_metrics = getattr(report, "lab_metrics", None)
-    category_scores = getattr(report, "category_scores", None)
-    audits = report.audits.all()
+    report = get_object_or_404(PSIReport.objects.select_related('page', 'field_metrics', 'lab_metrics', 'category_scores').prefetch_related('audits'), id=report_id, user=request.user)
+    # field_metrics, lab_metrics, category_scores are now directly accessible via report.field_metrics etc.
+    # due to OneToOneField related_name. Audits are accessible via report.audits.all()
     return render(
         request,
         "links/psi_report_detail.html",
         {
             "report": report,
-            "field_metrics": field_metrics,
-            "lab_metrics": lab_metrics,
-            "category_scores": category_scores,
-            "audits": audits,
+            "field_metrics": getattr(report, "field_metrics", None), # Still good for explicit check
+            "lab_metrics": getattr(report, "lab_metrics", None),
+            "category_scores": getattr(report, "category_scores", None),
+            "audits": report.audits.all(),
         },
     )
 
@@ -151,73 +180,97 @@ def psi_report_detail(request, report_id):
 @login_required
 @require_POST
 def bulk_delete_links(request):
-    data = json.loads(request.body)
-    ids = data.get("ids", [])
-    Link.objects.filter(id__in=ids, user=request.user).delete()
-    return JsonResponse({"status": "success"})
+    try:
+        data = json.loads(request.body)
+        ids = data.get("ids", [])
+        if not ids:
+            return JsonResponse({"status": "error", "message": "No IDs provided."}, status=400)
+        Link.objects.filter(id__in=ids, user=request.user).delete()
+        return JsonResponse({"status": "success", "message": "Links deleted successfully."})
+    except json.JSONDecodeError:
+        return JsonResponse({"status": "error", "message": "Invalid JSON."}, status=400)
+    except Exception as e:
+         return JsonResponse({"status": "error", "message": str(e)}, status=500)
 
 
-def export_psi_reports(request, link_id):
-    link = get_object_or_404(Link, id=link_id)
-    reports = link.psi_reports.all().order_by("-created_at")
-    data = [
-        {
-            "id": r.id,
-            "created_at": r.created_at.isoformat(),
-            "mobile_report": r.mobile_report,
-            "desktop_report": r.desktop_report,
-        }
-        for r in reports
-    ]
+def export_psi_reports(request, link_id): # Not login protected, consider if needed
+    link = get_object_or_404(Link, id=link_id) # Add user=request.user if login protected
+    # This view seems to export PSIReportGroup data, not individual PSIReports.
+    # The original code refers to link.psi_reports which doesn't exist directly.
+    # Assuming it means to export data related to PSIReportGroups associated with the link's page.
+    page = Page.objects.filter(url=link.url, user=link.user).first()
+    if not page:
+        return JsonResponse([], safe=False)
+        
+    report_groups = PSIReportGroup.objects.filter(page=page).order_by("-fetch_time")
+    data = []
+    for group in report_groups:
+        mobile = group.reports.filter(strategy='mobile').first()
+        desktop = group.reports.filter(strategy='desktop').first()
+        data.append({
+            "group_id": group.id,
+            "fetch_time": group.fetch_time.isoformat(),
+            "mobile_report_id": mobile.id if mobile else None,
+            "desktop_report_id": desktop.id if desktop else None,
+            # Add more fields from reports if needed
+        })
     return JsonResponse(data, safe=False)
 
 
-def export_psi_reports_csv(request, link_id):
-    link = get_object_or_404(Link, id=link_id)
-    reports = link.psi_reports.all().order_by("-created_at")
+def export_psi_reports_csv(request, link_id): # Not login protected
+    link = get_object_or_404(Link, id=link_id) # Add user=request.user if login protected
+    page = Page.objects.filter(url=link.url, user=link.user).first()
+    if not page:
+        response = HttpResponse(content_type="text/csv")
+        response["Content-Disposition"] = (
+            f'attachment; filename="psi_reports_{link_id}.csv"'
+        )
+        writer = csv.writer(response)
+        writer.writerow(["Error"])
+        writer.writerow(["No page found for this link to export reports."])
+        return response
+
+    reports = PSIReport.objects.filter(page=page).select_related('category_scores').order_by("-fetch_time")
+    
     response = HttpResponse(content_type="text/csv")
     response["Content-Disposition"] = (
-        f'attachment; filename="psi_reports_{link_id}.csv"'
+        f'attachment; filename="psi_reports_{link_id}_{page.url.replace("https://", "").replace("http://", "").replace("/", "_")}.csv"'
     )
     writer = csv.writer(response)
     writer.writerow(
-        ["id", "created_at", "mobile_performance", "desktop_performance", "link_id"]
+        ["report_id", "fetch_time", "strategy", "performance_score", "accessibility_score", "best_practices_score", "seo_score", "page_url"]
     )
     for r in reports:
-
-        def get_score(report):
-            try:
-                return report["lighthouseResult"]["categories"]["performance"]["score"]
-            except Exception:
-                return ""
-
         writer.writerow(
             [
                 r.id,
-                r.created_at.isoformat(),
-                get_score(r.mobile_report),
-                get_score(r.desktop_report),
-                link.id,
+                r.fetch_time.isoformat(),
+                r.strategy,
+                r.category_scores.performance if r.category_scores else "",
+                r.category_scores.accessibility if r.category_scores else "",
+                r.category_scores.best_practices if r.category_scores else "",
+                r.category_scores.seo if r.category_scores else "",
+                page.url,
             ]
         )
     return response
 
 
-def export_links_csv(request):
-    links = Link.objects.all().order_by("-created_at")
+def export_links_csv(request): # Not login protected
+    links = Link.objects.filter(user=request.user).order_by("-created_at") # Assuming for logged in user
     response = HttpResponse(content_type="text/csv")
     response["Content-Disposition"] = 'attachment; filename="links.csv"'
     writer = csv.writer(response)
     writer.writerow(["id", "title", "url", "description", "created_at", "updated_at"])
-    for link in links:
+    for link_obj in links: # Renamed variable
         writer.writerow(
             [
-                link.id,
-                link.title,
-                link.url,
-                link.description,
-                link.created_at.isoformat(),
-                link.updated_at.isoformat(),
+                link_obj.id,
+                link_obj.title,
+                link_obj.url,
+                link_obj.description,
+                link_obj.created_at.isoformat(),
+                link_obj.updated_at.isoformat(),
             ]
         )
     return response
@@ -227,8 +280,8 @@ def export_links_csv(request):
 @require_POST
 def delete_psi_report_group(request, group_id):
     group = get_object_or_404(PSIReportGroup, id=group_id, user=request.user)
-    group.delete()
-    return JsonResponse({"status": "success"})
+    group.delete() # This will also delete associated PSIReport instances via CASCADE
+    return JsonResponse({"status": "success", "message": "Report group deleted."})
 
 
 @login_required
@@ -254,66 +307,75 @@ def import_links_json(request):
     try:
         if 'file' not in request.FILES:
             return JsonResponse({'status': 'error', 'message': 'No file uploaded.'}, status=400)
-        data = json.loads(request.FILES['file'].read().decode())
-        created = 0
+        
+        file_content = request.FILES['file'].read().decode('utf-8')
+        data = json.loads(file_content)
+        
+        created_count = 0
+        existing_count = 0
+
         for entry in data:
             if 'url' in entry and 'title' in entry:
-                Link.objects.get_or_create(
+                link_obj, created = Link.objects.get_or_create( # Renamed variable
                     url=entry['url'],
+                    user=request.user, # Ensure uniqueness per user
                     defaults={
                         'title': entry.get('title', ''),
                         'description': entry.get('description', ''),
-                        'user': request.user,
                     },
                 )
-                created += 1
-        return JsonResponse({'status': 'success', 'created': created})
+                if created:
+                    created_count += 1
+                else:
+                    existing_count +=1
+        return JsonResponse({'status': 'success', 'created': created_count, 'existing_skipped': existing_count})
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'message': 'Invalid JSON format in file.'}, status=400)
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
 
 
 @login_required
 def dashboard(request):
-    # Subqueries for latest related objects
     latest_psi = PSIReport.objects.filter(
         page__url=OuterRef('url'), user=request.user
     ).order_by('-fetch_time')
     latest_ssl = SSLCheck.objects.filter(
-        link=OuterRef('pk'), user=request.user
+        link=OuterRef('pk'), user=request.user # pk refers to Link's primary key
     ).order_by('-checked_at')
     latest_ssl_labs = SSLLabsScan.objects.filter(
         link=OuterRef('pk'), user=request.user
     ).order_by('-scanned_at')
 
-    links = Link.objects.filter(user=request.user).annotate(
-        psi_status=Subquery(latest_psi.values('category_scores__performance')[:1], output_field=FloatField()),
+    links_qs = Link.objects.filter(user=request.user).annotate(
+        psi_performance_score=Subquery(latest_psi.values('category_scores__performance')[:1], output_field=FloatField()),
         psi_last_checked=Subquery(latest_psi.values('fetch_time')[:1], output_field=DateTimeField()),
-        ssl_status=Subquery(latest_ssl.values('is_expired')[:1], output_field=CharField()),
+        ssl_is_expired=Subquery(latest_ssl.values('is_expired')[:1], output_field=CharField()), # BooleanField or CharField? Model has BooleanField
         ssl_last_checked=Subquery(latest_ssl.values('checked_at')[:1], output_field=DateTimeField()),
-        ssl_expiry=Subquery(latest_ssl.values('not_after')[:1], output_field=DateTimeField()),
-        ssl_warnings=Subquery(latest_ssl.values('warnings')[:1], output_field=CharField()),
-        ssl_errors=Subquery(latest_ssl.values('errors')[:1], output_field=CharField()),
-        ssl_grade=Subquery(latest_ssl_labs.values('grade')[:1], output_field=CharField()),
-        ssl_labs_status=Subquery(latest_ssl_labs.values('status')[:1], output_field=CharField()),
+        ssl_expiry_date=Subquery(latest_ssl.values('not_after')[:1], output_field=DateTimeField()),
+        ssl_warnings_text=Subquery(latest_ssl.values('warnings')[:1], output_field=CharField()),
+        ssl_errors_text=Subquery(latest_ssl.values('errors')[:1], output_field=CharField()),
+        ssl_labs_grade=Subquery(latest_ssl_labs.values('grade')[:1], output_field=CharField()),
+        ssl_labs_scan_status=Subquery(latest_ssl_labs.values('status')[:1], output_field=CharField()),
     )
+    
     sites_data = []
-    for link in links:
-        # Uptime status: use stored values only
+    for link_item in links_qs: # Renamed variable
         sites_data.append({
-            "link": link,
-            "psi_status": link.psi_status,
-            "psi_last_checked": link.psi_last_checked,
-            "ssl_status": not link.ssl_status if link.ssl_status is not None else None,
-            "ssl_last_checked": link.ssl_last_checked,
-            "ssl_expiry": link.ssl_expiry,
-            "ssl_warnings": link.ssl_warnings,
-            "ssl_errors": link.ssl_errors,
-            "ssl_grade": link.ssl_grade,
-            "ssl_labs_status": link.ssl_labs_status,
-            "uptime_status": link.uptime_last_status,
-            "uptime_last_checked": link.uptime_last_checked,
-            "sec_headers_status": None,
-            "sec_headers_last_checked": None,
+            "link": link_item,
+            "psi_status": link_item.psi_performance_score, # Renamed for clarity
+            "psi_last_checked": link_item.psi_last_checked,
+            "ssl_status": not bool(link_item.ssl_is_expired) if link_item.ssl_is_expired is not None else None, # Convert to boolean
+            "ssl_last_checked": link_item.ssl_last_checked,
+            "ssl_expiry": link_item.ssl_expiry_date, # Renamed for clarity
+            "ssl_warnings": link_item.ssl_warnings_text, # Renamed
+            "ssl_errors": link_item.ssl_errors_text, # Renamed
+            "ssl_grade": link_item.ssl_labs_grade, # Renamed
+            "ssl_labs_status": link_item.ssl_labs_scan_status, # Renamed
+            "uptime_status": link_item.uptime_last_status, # Assuming this is 'Up'/'Down' or similar
+            "uptime_last_checked": link_item.uptime_last_checked,
+            "sec_headers_status": None, # Placeholder
+            "sec_headers_last_checked": None, # Placeholder
         })
     return render(request, "links/dashboard.html", {"sites_data": sites_data})
 
@@ -321,22 +383,26 @@ def dashboard(request):
 @login_required
 def site_detail(request, link_id):
     link = get_object_or_404(Link, id=link_id, user=request.user)
-    psi_reports = PSIReport.objects.filter(
-        page__url=link.url, user=request.user
-    ).order_by("-fetch_time")
-    # Placeholders for future features
-    ssl_results = None
-    uptime_results = None
-    sec_headers_results = None
+    # Fetch related data efficiently
+    page = Page.objects.filter(url=link.url, user=request.user).first()
+    psi_reports = PSIReport.objects.none()
+    if page:
+        psi_reports = PSIReport.objects.filter(page=page, user=request.user).order_by("-fetch_time")
+    
+    latest_ssl_check = link.ssl_checks.order_by("-checked_at").first()
+    latest_ssllabs_scan = link.ssllabs_scans.order_by("-scanned_at").first()
+    # Uptime can be fetched from link model's fields or by calling service if live data is needed
+
     return render(
         request,
-        "links/site_detail.html",
+        "links/site_detail.html", # Create this template
         {
             "link": link,
             "psi_reports": psi_reports,
-            "ssl_results": ssl_results,
-            "uptime_results": uptime_results,
-            "sec_headers_results": sec_headers_results,
+            "latest_ssl_check": latest_ssl_check,
+            "latest_ssllabs_scan": latest_ssllabs_scan,
+            # "uptime_results": uptime_results, # Pass link.uptime_last_status etc.
+            # "sec_headers_results": sec_headers_results, # Placeholder
         },
     )
 
@@ -344,114 +410,141 @@ def site_detail(request, link_id):
 @login_required
 @require_POST
 def add_site(request):
-    data = json.loads(request.body)
-    url = data.get("url")
-    title = data.get("title")
-    description = data.get("description", "")
-    if not url or not title:
-        return JsonResponse(
-            {"status": "error", "message": "Title and URL are required."}, status=400
+    try:
+        data = json.loads(request.body)
+        url = data.get("url")
+        title = data.get("title")
+        description = data.get("description", "")
+        
+        if not url or not title:
+            return JsonResponse(
+                {"status": "error", "message": "Title and URL are required."}, status=400
+            )
+        # Basic URL validation could be added here if desired
+        
+        link, created = Link.objects.get_or_create(
+            url=url,
+            user=request.user,
+            defaults={"title": title, "description": description},
         )
-    link, created = Link.objects.get_or_create(
-        url=url,
-        user=request.user,
-        defaults={"title": title, "description": description},
-    )
-    if created:
-        messages.success(request, f'Site "{title}" added successfully!')
-        return JsonResponse(
-            {
-                "status": "success",
-                "link_id": link.id,
-                "title": link.title,
-                "url": link.url,
-            }
-        )
-    else:
-        return JsonResponse(
-            {"status": "error", "message": "Site already exists."}, status=400
-        )
+        if created:
+            messages.success(request, f'Site "{title}" added successfully!')
+            return JsonResponse(
+                {
+                    "status": "success",
+                    "link_id": link.id,
+                    "title": link.title,
+                    "url": link.url,
+                    "message": f'Site "{title}" added successfully!'
+                }
+            )
+        else:
+            return JsonResponse(
+                {"status": "error", "message": "Site with this URL already exists for your account."}, status=400
+            )
+    except json.JSONDecodeError:
+        return JsonResponse({"status":"error", "message": "Invalid JSON."}, status=400)
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)
 
 
 @login_required
 def profile(request):
-    user = request.user
+    user = request.user # Already settings.AUTH_USER_MODEL
     password_form = PasswordChangeForm(user)
-    email_updated = False
-    password_updated = False
+    
     if request.method == "POST":
         if "update_email" in request.POST:
             new_email = request.POST.get("email")
             if new_email and new_email != user.email:
-                user.email = new_email
-                user.save()
-                email_updated = True
-                messages.success(request, "Email updated successfully.")
+                # Add email validation
+                from django.core.validators import validate_email
+                from django.core.exceptions import ValidationError
+                try:
+                    validate_email(new_email)
+                    # Check if email is already in use by another user
+                    if get_user_model().objects.filter(email=new_email).exclude(pk=user.pk).exists():
+                         messages.error(request, "This email address is already in use.")
+                    else:
+                        user.email = new_email
+                        user.save(update_fields=['email'])
+                        messages.success(request, "Email updated successfully.")
+                except ValidationError:
+                    messages.error(request, "Invalid email address.")
+            elif new_email == user.email:
+                 messages.info(request, "The new email is the same as the current one.")
+            else:
+                messages.error(request, "Email cannot be empty.")
+            return redirect("profile") # Redirect to refresh and show message
+
         elif "update_password" in request.POST:
             password_form = PasswordChangeForm(user, request.POST)
             if password_form.is_valid():
-                user = password_form.save()
-                update_session_auth_hash(request, user)
-                password_updated = True
+                saved_user = password_form.save() # Renamed variable
+                update_session_auth_hash(request, saved_user) # Use saved_user
                 messages.success(request, "Password updated successfully.")
+                return redirect("profile") # Redirect to refresh and clear form
+            else:
+                messages.error(request, "Please correct the password errors.")
+        
         elif "delete_account" in request.POST:
+            # Implement safety: e.g., confirm password or type "DELETE"
             user.delete()
             messages.success(request, "Your account has been deleted.")
-            return redirect("home")
+            return redirect("account_login") # Or home page
+            
     return render(
         request,
         "links/profile.html",
         {
-            "user": user,
             "password_form": password_form,
-            "email_updated": email_updated,
-            "password_updated": password_updated,
+            # "email_updated" & "password_updated" flags are not very useful with redirects
         },
     )
 
 
 def root_redirect(request):
-    return redirect("dashboard")
+    if request.user.is_authenticated:
+        return redirect("dashboard")
+    return redirect("account_login")
 
 
 @login_required
 def features_page(request, link_id):
     link = get_object_or_404(Link, id=link_id, user=request.user)
-    # Define available features and their metadata
     features = [
         {
             "name": "PageSpeed Insights",
             "key": "psi",
             "description": "Analyze site performance using Google PSI.",
             "has_history": True,
-            "run_url": f"/sites/{link.id}/fetch-psi/",
-            "history_url": f"/sites/{link.id}/reports/",
+            "run_url": reverse('fetch_psi_report', args=[link.id]), # Use reverse
+            "history_url": reverse('psi_reports_list', args=[link.id]), # Use reverse
         },
         {
             "name": "Uptime Monitoring",
             "key": "uptime",
             "description": "Check site uptime status using UptimeRobot.",
-            "has_history": False,
-            "run_url": f"/sites/{link.id}/features/uptime/",
-            "history_url": None,
+            "has_history": True, # Uptime history is available
+            "run_url": reverse('uptime_feature_run', args=[link.id]),
+            "history_url": reverse('uptime_history', args=[link.id]),
         },
         {
-            "name": "SSL Certificate",
+            "name": "SSL Certificate Check", # Renamed for clarity
             "key": "ssl",
             "description": "Check SSL certificate validity, expiry, and configuration.",
             "has_history": True,
-            "run_url": f"/sites/{link.id}/features/ssl/",
-            "history_url": f"/sites/{link.id}/features/ssl/history/",
+            "run_url": reverse('ssl_feature_run', args=[link.id]),
+            "history_url": reverse('ssl_history', args=[link.id]),
         },
         {
             "name": "SSL Labs Advanced Scan",
             "key": "ssllabs",
             "description": "Run a deep SSL security scan and get a grade (A+ to F) and vulnerabilities.",
             "has_history": True,
-            "run_url": f"/sites/{link.id}/features/ssl-labs/",
-            "history_url": f"/sites/{link.id}/features/ssl-labs/history/",
+            "run_url": reverse('ssl_labs_feature_run', args=[link.id]),
+            "history_url": reverse('ssl_labs_history', args=[link.id]),
         },
-        # Add more features here as you implement them
     ]
     return render(
         request, "links/features_page.html", {"link": link, "features": features}
@@ -461,125 +554,145 @@ def features_page(request, link_id):
 @login_required
 def uptime_feature_run(request, link_id):
     link = get_object_or_404(Link, id=link_id, user=request.user)
+    context = {"link": link, "monitor": None, "error": None}
     try:
-        monitor = UptimeRobotService.get_monitor_status(link, request.user)
-        # Parse custom uptime ratios
-        custom_uptime_ratio = monitor.get("custom_uptime_ratio", "")
-        uptime_ratios = []
-        if custom_uptime_ratio:
-            uptime_ratios = [r.strip() for r in custom_uptime_ratio.split("-")]
-        # Last response time
-        last_response_time = monitor.get("last_response_time")
-        if not last_response_time and monitor.get("response_times"):
-            last_response_time = monitor["response_times"][-1]["value"]
-        # Alert contacts
-        alert_contacts = monitor.get("alert_contacts", [])
-        # Maintenance windows
-        maintenance_windows = monitor.get("maintenance_windows", [])
-        # SSL info
-        ssl = monitor.get("ssl")
-        # Tags
-        tags = monitor.get("tags", "")
-        # Raw JSON
-        import json
+        monitor = UptimeRobotService.get_monitor_details(link, request.user) # Using get_monitor_details
+        
+        custom_uptime_ratio_str = monitor.get("custom_uptime_ratio", "")
+        uptime_ratios = [r.strip() for r in custom_uptime_ratio_str.split("-")] if custom_uptime_ratio_str else []
+        
+        last_response_time = None
+        if monitor.get("response_times"):
+            last_response_time = monitor["response_times"][-1].get("value")
+        if not last_response_time: # Fallback if last response time is 0 or not present
+             last_response_time = monitor.get("average_response_time")
 
-        raw_json = json.dumps(monitor, indent=2)
-        context = {
-            "link": link,
+
+        context.update({
             "monitor": monitor,
             "uptime_ratios": uptime_ratios,
             "last_response_time": last_response_time,
-            "alert_contacts": alert_contacts,
-            "maintenance_windows": maintenance_windows,
-            "ssl": ssl,
-            "tags": tags,
-            "raw_json": raw_json,
-            "error": None,
-        }
+            "alert_contacts": monitor.get("alert_contacts", []),
+            "maintenance_windows": monitor.get("maintenance_windows", []),
+            "ssl_info": monitor.get("ssl"), # Renamed from "ssl" to avoid conflict
+            "tags_list": [t.strip() for t in monitor.get("tags","").split(',')] if monitor.get("tags") else [], # Assuming tags are comma-separated
+            "raw_json": json.dumps(monitor, indent=2),
+        })
     except Exception as e:
-        context = {"link": link, "monitor": None, "error": str(e)}
+        context["error"] = str(e)
     return render(request, "links/uptime_feature_run.html", context)
 
 
 @login_required
 def uptime_history(request, link_id):
     link = get_object_or_404(Link, id=link_id, user=request.user)
+    context = {"link": link, "logs": [], "error": None}
     try:
-        monitor = UptimeRobotService.get_monitor_status(link, request.user)
-        logs = monitor.get("logs", [])
-        # Filtering
-        log_type = request.GET.get("type")
-        if log_type:
-            logs = [log for log in logs if str(log.get("type")) == log_type]
-        # Sorting
-        sort = request.GET.get("sort", "-datetime")
-        reverse = sort.startswith("-")
-        sort_key = sort.lstrip("-")
-        logs = sorted(logs, key=lambda x: x.get(sort_key), reverse=reverse)
-        # Pagination
-        page = int(request.GET.get("page", 1))
-        per_page = int(request.GET.get("per_page", 20))
-        total = len(logs)
-        start = (page - 1) * per_page
-        end = start + per_page
-        logs_page = logs[start:end]
-        # Trend analytics
-        trend_data = get_trend_data_for_logs(logs, 'datetime')
-        # Compare analytics
+        monitor_data = UptimeRobotService.get_monitor_details(link, request.user) # Fetch fresh data
+        logs = monitor_data.get("logs", [])
+        
+        log_type_filter = request.GET.get("type")
+        if log_type_filter:
+            logs = [log for log in logs if str(log.get("type")) == log_type_filter]
+        
+        sort_param = request.GET.get("sort", "-datetime") # Default sort
+        reverse_sort = sort_param.startswith("-")
+        sort_key_name = sort_param.lstrip("-")
+        
+        # Ensure logs have the sort key or provide a default for sorting
+        logs = sorted(logs, key=lambda x: x.get(sort_key_name, 0 if 'time' in sort_key_name else ''), reverse=reverse_sort)
+
+        page_num = int(request.GET.get("page", 1))
+        per_page_count = int(request.GET.get("per_page", 20))
+        
+        paginator_logs = Paginator(logs, per_page_count)
+        try:
+            logs_page_obj = paginator_logs.page(page_num)
+        except PageNotAnInteger:
+            logs_page_obj = paginator_logs.page(1)
+        except EmptyPage:
+            logs_page_obj = paginator_logs.page(paginator_logs.num_pages)
+
+        trend_data = get_trend_data_for_logs(logs, 'datetime') # Pass all logs for trend
+        
         compare_start1 = request.GET.get("compare_start1")
         compare_end1 = request.GET.get("compare_end1")
         compare_start2 = request.GET.get("compare_start2")
         compare_end2 = request.GET.get("compare_end2")
-        compare_data = get_compare_data_for_logs(logs, 'datetime', [(compare_start1, compare_end1), (compare_start2, compare_end2)])
-        context = {
-            "link": link,
-            "logs": logs_page,
-            "total": total,
-            "page": page,
-            "per_page": per_page,
-            "log_type": log_type,
-            "sort": sort,
-            "error": None,
+        
+        compare_log_periods = []
+        if compare_start1 and compare_end1:
+            compare_log_periods.append((compare_start1, compare_end1))
+        if compare_start2 and compare_end2:
+            compare_log_periods.append((compare_start2, compare_end2))
+        
+        compare_log_data = None
+        if len(compare_log_periods) == 2:
+            compare_log_data = get_compare_data_for_logs(logs, 'datetime', compare_log_periods) # Pass all logs for compare
+
+        context.update({
+            "logs": logs_page_obj, # Paginated logs
+            "total": paginator_logs.count,
+            "page": page_num,
+            "per_page": per_page_count,
+            "log_type": log_type_filter,
+            "sort": sort_param,
             "trend_data": trend_data,
-            "compare_data": compare_data,
+            "compare_data": compare_log_data,
             "compare_start1": compare_start1,
             "compare_end1": compare_end1,
             "compare_start2": compare_start2,
             "compare_end2": compare_end2,
-        }
+        })
     except Exception as e:
-        context = {"link": link, "logs": [], "error": str(e)}
+        context["error"] = str(e)
     return render(request, "links/uptime_history.html", context)
 
 
 @login_required
 def export_uptime_logs_csv(request, link_id):
     link = get_object_or_404(Link, id=link_id, user=request.user)
-    monitor = UptimeRobotService.get_monitor_status(link, request.user)
-    logs = monitor.get("logs", [])
-    response = HttpResponse(content_type="text/csv")
-    response["Content-Disposition"] = (
-        f'attachment; filename="uptime_logs_{link_id}.csv"'
-    )
-    writer = csv.writer(response)
-    writer.writerow(["datetime", "type", "reason"])
-    for log in logs:
-        writer.writerow(
-            [
-                log.get("datetime"),
-                log.get("type"),
-                log.get("reason", {}).get("detail", ""),
-            ]
+    try:
+        monitor = UptimeRobotService.get_monitor_details(link, request.user)
+        logs = monitor.get("logs", [])
+        
+        response = HttpResponse(content_type="text/csv")
+        response["Content-Disposition"] = (
+            f'attachment; filename="uptime_logs_{link.url.replace("https://", "").replace("http://", "").replace("/", "_")}_{link_id}.csv"'
         )
-    return response
+        writer = csv.writer(response)
+        writer.writerow(["datetime", "type (1=Down, 2=Up, 99=Paused)", "reason_detail", "duration_seconds", "status_code"])
+        for log in logs:
+            writer.writerow(
+                [
+                    datetime.fromtimestamp(log.get("datetime")).isoformat() if log.get("datetime") else "",
+                    log.get("type"),
+                    log.get("reason", {}).get("detail", ""),
+                    log.get("duration", ""),
+                    log.get("status_code", "") 
+                ]
+            )
+        return response
+    except Exception as e:
+        # Handle error, maybe return a CSV with error message
+        response = HttpResponse(content_type="text/csv")
+        response["Content-Disposition"] = (
+            f'attachment; filename="error_export_uptime_logs_{link_id}.csv"'
+        )
+        writer = csv.writer(response)
+        writer.writerow(["Error exporting logs:", str(e)])
+        return response
 
 
 @login_required
 def export_uptime_logs_json(request, link_id):
     link = get_object_or_404(Link, id=link_id, user=request.user)
-    monitor = UptimeRobotService.get_monitor_status(link, request.user)
-    logs = monitor.get("logs", [])
-    return JsonResponse(logs, safe=False)
+    try:
+        monitor = UptimeRobotService.get_monitor_details(link, request.user)
+        logs = monitor.get("logs", [])
+        return JsonResponse(logs, safe=False, json_dumps_params={'indent': 2})
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
 
 
 @login_required
@@ -589,71 +702,56 @@ def settings_view(request):
         {"key": "uptimerobot", "name": "UptimeRobot", "help_url": "https://uptimerobot.com/dashboard#mySettings", "instructions": "Log in to UptimeRobot, go to My Settings, and copy your Main API Key.", "limitations": "Free tier: 50 monitors, 5-minute checks. Quotas may change."},
     ]
     user = request.user
-    form_debug = []
-    form = APIKeyForm(request.POST or None, user=user)
-    just_posted = False
-    form_valid = None
+    form_valid_status = None # Renamed
+
     if request.method == "POST":
-        form_debug.append("[DEBUG] POST received")
+        form = APIKeyForm(request.POST, user=user)
         if form.is_valid():
-            form_debug.append("[DEBUG] Form is valid")
-            form_debug.append(f"[DEBUG] Cleaned data: {form.cleaned_data}")
-            for service in SERVICES:
-                field = f"key_{service['key']}"
-                value = form.cleaned_data.get(field, "").strip()
-                print(f"Processing service: {service['key']}, value: {value}")
-                if value:
-                    obj, created = UserAPIKey.objects.get_or_create(user=user, service=service["key"], defaults={'key': value})
-                    if not created and obj.key != value:
-                        obj.key = value
-                    obj.status = "set"
-                    obj.save()
-                    print(f"Saved UserAPIKey: {obj.__dict__}")
-                    form_debug.append(f"[DEBUG] Saved key for {service['key']} (created={created})")
-                    messages.success(request, f"API key for {service['name']} saved.")
-                else:
-                    deleted_count, _ = UserAPIKey.objects.filter(user=user, service=service["key"]).delete()
+            for service_config in SERVICES: # Renamed variable
+                field_name = f"key_{service_config['key']}"
+                value = form.cleaned_data.get(field_name, "").strip()
+                
+                if value: # If key is provided
+                    key_obj, created = UserAPIKey.objects.update_or_create( # Use update_or_create
+                        user=user, 
+                        service=service_config["key"],
+                        defaults={'key': value, 'status': 'set'}
+                    )
+                    messages.success(request, f"API key for {service_config['name']} {'saved' if created else 'updated'}.")
+                else: # If key is empty, remove existing if any
+                    deleted_count, _ = UserAPIKey.objects.filter(user=user, service=service_config["key"]).delete()
                     if deleted_count > 0:
-                        form_debug.append(f"[DEBUG] Removed key for {service['key']}")
-                        messages.info(request, f"API key for {service['name']} removed.")
-            just_posted = True
-            form_valid = True
-            # For debugging, render the page instead of redirecting
-            keys = {k.service: k for k in UserAPIKey.objects.filter(user=user)}
-            for service in SERVICES:
-                k = keys.get(service["key"])
-                if k:
-                    k.status = "set" if k.key else "Not set"
-            context = {
-                "services": SERVICES,
-                "keys": keys,
-                "form": form,
-                "just_posted": just_posted,
-                "form_debug": form_debug + [f"Debug: Re-rendering after POST. Form valid: {form.is_valid()}"],
-                "form_valid": form.is_valid(),
-            }
-            return render(request, "links/settings.html", context)
+                        messages.info(request, f"API key for {service_config['name']} removed.")
+            
+            form_valid_status = True
+            messages.success(request, "Settings saved successfully.") # General success message
+            return redirect('settings') # Redirect to show messages and clear POST
         else:
-            form_debug.append("[DEBUG] Form is NOT valid")
-            form_debug.append(f"[DEBUG] Errors: {form.errors}")
-            print(f"Settings form errors: {form.errors.as_json()}")
-            form_valid = False
-    # For display/status
-    keys = {k.service: k for k in UserAPIKey.objects.filter(user=user)}
-    for service in SERVICES:
-        k = keys.get(service["key"])
+            form_valid_status = False
+            messages.error(request, "Please correct the errors below.")
+    else:
+        form = APIKeyForm(user=user) # Pre-populate with existing keys
+
+    # Prepare keys for template display
+    current_keys = {k.service: k for k in UserAPIKey.objects.filter(user=user)}
+    for service_config in SERVICES: # Use same var name as above
+        k = current_keys.get(service_config["key"])
         if k:
-            k.status = "set" if k.key else "Not set"
+            service_config['status'] = "set" if k.key and k.key != "DUMMY_KEY_CHANGE_ME" else "Not set"
+            service_config['actual_key_value_for_template_debug_only'] = k.key # For DUMMY_KEY check in template
+        else:
+            service_config['status'] = "Not set"
+            service_config['actual_key_value_for_template_debug_only'] = None
+
+
     return render(
         request,
         "links/settings.html",
         {
-            "services": SERVICES,
-            "keys": keys,
+            "services": SERVICES, # Pass modified services list
+            "keys": current_keys, # Still useful for direct access if needed
             "form": form,
-            "just_posted": just_posted,
-            "form_debug": form_debug,
-            "form_valid": form_valid,
+            "form_valid": form_valid_status, # Use renamed
         },
     )
 
@@ -661,22 +759,30 @@ def settings_view(request):
 @login_required
 def ssl_labs_feature_run(request, link_id):
     link = get_object_or_404(Link, id=link_id, user=request.user)
-    error = None
-    scan = None
+    error_message = None # Renamed
+    scan_result = None # Renamed
+
     if request.method == "POST":
         try:
-            scan = SSLLabsService.run_scan(link, request.user)
+            scan_result = SSLLabsService.run_scan(link, request.user)
+            if scan_result: # run_scan returns a list or a single object
+                 messages.success(request, f"SSL Labs scan for {link.title} completed.")
+            else:
+                 messages.warning(request, f"SSL Labs scan for {link.title} did not return results immediately. Check history.")
         except Exception as e:
-            error = str(e)
-    # Always show the latest SSL Labs scan result
+            error_message = str(e)
+            messages.error(request, f"SSL Labs scan failed: {error_message}")
+        return redirect('ssl_labs_feature_run', link_id=link.id) # Redirect to show messages
+
     latest_scan = link.ssllabs_scans.order_by("-scanned_at").first()
+    
     return render(
         request,
         "links/ssl_labs_feature_run.html",
         {
             "link": link,
-            "scan": scan or latest_scan,
-            "error": error,
+            "scan": scan_result or latest_scan, # Show new scan if available, else latest
+            "error": error_message, # This will be None on GET after redirect
         },
     )
 
@@ -684,23 +790,39 @@ def ssl_labs_feature_run(request, link_id):
 @login_required
 def ssl_history(request, link_id):
     link = get_object_or_404(Link, id=link_id, user=request.user)
-    checks = link.ssl_checks.order_by("-checked_at")
-    # Trend analytics
-    trend_data = get_trend_data_for_queryset(checks, 'checked_at', group_by_field=None, extra_fields=['not_after'])
-    # Compare analytics
+    checks_qs = link.ssl_checks.order_by("-checked_at") # Renamed variable
+    
+    trend_start_date = request.GET.get("trend_start")
+    trend_end_date = request.GET.get("trend_end")
+    trend_data_result = None # Renamed
+    if trend_start_date and trend_end_date:
+        trend_data_result = get_trend_data_for_queryset(checks_qs, 'checked_at', group_by_field=None, extra_fields=['not_after'])
+    
     compare_start1 = request.GET.get("compare_start1")
     compare_end1 = request.GET.get("compare_end1")
     compare_start2 = request.GET.get("compare_start2")
     compare_end2 = request.GET.get("compare_end2")
-    compare_data = get_compare_data_for_queryset(checks, 'checked_at', [(compare_start1, compare_end1), (compare_start2, compare_end2)], group_by_field=None, extra_fields=['not_after'])
+    
+    compare_data_result = None # Renamed
+    compare_ssl_periods = []
+    if compare_start1 and compare_end1:
+        compare_ssl_periods.append((compare_start1, compare_end1))
+    if compare_start2 and compare_end2:
+        compare_ssl_periods.append((compare_start2, compare_end2))
+
+    if len(compare_ssl_periods) == 2:
+        compare_data_result = get_compare_data_for_queryset(checks_qs, 'checked_at', compare_ssl_periods, group_by_field=None, extra_fields=['not_after'])
+        
     return render(
         request,
         "links/ssl_history.html",
         {
             "link": link,
-            "checks": checks,
-            "trend_data": trend_data,
-            "compare_data": compare_data,
+            "checks": checks_qs,
+            "trend_data": trend_data_result,
+            "trend_start": trend_start_date, # Pass back to prefill form
+            "trend_end": trend_end_date,     # Pass back to prefill form
+            "compare_data": compare_data_result,
             "compare_start1": compare_start1,
             "compare_end1": compare_end1,
             "compare_start2": compare_start2,
@@ -712,27 +834,43 @@ def ssl_history(request, link_id):
 @login_required
 def ssl_labs_history(request, link_id):
     link = get_object_or_404(Link, id=link_id, user=request.user)
-    scans = link.ssllabs_scans.order_by("-scanned_at")
-    # Trend analytics
-    trend_data = get_trend_data_for_queryset(scans, 'scanned_at', group_by_field='grade', extra_fields=['status'])
-    # Compare analytics
-    compare_start1 = request.GET.get("compare_start1")
-    compare_end1 = request.GET.get("compare_end1")
-    compare_start2 = request.GET.get("compare_start2")
-    compare_end2 = request.GET.get("compare_end2")
-    compare_data = get_compare_data_for_queryset(scans, 'scanned_at', [(compare_start1, compare_end1), (compare_start2, compare_end2)], group_by_field='grade', extra_fields=['status'])
+    scans_qs = link.ssllabs_scans.order_by("-scanned_at") # Renamed
+    
+    trend_start_date_labs = request.GET.get("trend_start") # Suffix to avoid conflict if sharing template
+    trend_end_date_labs = request.GET.get("trend_end")
+    trend_data_labs = None
+    if trend_start_date_labs and trend_end_date_labs:
+        trend_data_labs = get_trend_data_for_queryset(scans_qs, 'scanned_at', group_by_field='grade', extra_fields=['status'])
+
+    compare_start1_labs = request.GET.get("compare_start1")
+    compare_end1_labs = request.GET.get("compare_end1")
+    compare_start2_labs = request.GET.get("compare_start2")
+    compare_end2_labs = request.GET.get("compare_end2")
+    
+    compare_data_labs = None
+    compare_ssllabs_periods = []
+    if compare_start1_labs and compare_end1_labs:
+        compare_ssllabs_periods.append((compare_start1_labs, compare_end1_labs))
+    if compare_start2_labs and compare_end2_labs:
+        compare_ssllabs_periods.append((compare_start2_labs, compare_end2_labs))
+
+    if len(compare_ssllabs_periods) == 2:
+        compare_data_labs = get_compare_data_for_queryset(scans_qs, 'scanned_at', compare_ssllabs_periods, group_by_field='grade', extra_fields=['status'])
+        
     return render(
         request,
         "links/ssl_labs_history.html",
         {
             "link": link,
-            "scans": scans,
-            "trend_data": trend_data,
-            "compare_data": compare_data,
-            "compare_start1": compare_start1,
-            "compare_end1": compare_end1,
-            "compare_start2": compare_start2,
-            "compare_end2": compare_end2,
+            "scans": scans_qs,
+            "trend_data": trend_data_labs,
+            "trend_start": trend_start_date_labs,
+            "trend_end": trend_end_date_labs,
+            "compare_data": compare_data_labs,
+            "compare_start1": compare_start1_labs,
+            "compare_end1": compare_end1_labs,
+            "compare_start2": compare_start2_labs,
+            "compare_end2": compare_end2_labs,
         },
     )
 
@@ -740,30 +878,38 @@ def ssl_labs_history(request, link_id):
 @login_required
 def ssl_feature_run(request, link_id):
     link = get_object_or_404(Link, id=link_id, user=request.user)
-    error = None
-    ssl_check = None
+    error_message_ssl = None # Renamed
+    ssl_check_result = None # Renamed
+
     if request.method == "POST":
         try:
-            ssl_check = SSLService.check_certificate(link, request.user)
+            ssl_check_result = SSLService.check_certificate(link, request.user)
+            if ssl_check_result:
+                 messages.success(request, f"SSL check for {link.title} completed.")
+            else:
+                 messages.warning(request, f"SSL check for {link.title} did not return results.")
         except Exception as e:
-            error = str(e)
-    # Always show the latest SSLCheck result
+            error_message_ssl = str(e)
+            messages.error(request, f"SSL check failed: {error_message_ssl}")
+        return redirect('ssl_feature_run', link_id=link.id) # Redirect to show messages
+
     latest_check = link.ssl_checks.order_by("-checked_at").first()
     return render(
         request,
         "links/ssl_feature_run.html",
         {
             "link": link,
-            "ssl_check": ssl_check or latest_check,
-            "error": error,
+            "ssl_check": ssl_check_result or latest_check, # Show new if available, else latest
+            "error": error_message_ssl, # Will be None on GET after redirect
         },
     )
 
 
 @login_required
+@require_GET # Explicitly state this is a GET view
 def dashboard_table(request):
-    # Use the same logic as dashboard view to build sites_data
-    # (copy the dashboard view logic here)
+    # This view is intended to return only the HTML for the table body.
+    # The logic should be identical to the dashboard view for fetching sites_data.
     latest_psi = PSIReport.objects.filter(
         page__url=OuterRef('url'), user=request.user
     ).order_by('-fetch_time')
@@ -773,35 +919,37 @@ def dashboard_table(request):
     latest_ssl_labs = SSLLabsScan.objects.filter(
         link=OuterRef('pk'), user=request.user
     ).order_by('-scanned_at')
-    links = Link.objects.filter(user=request.user).annotate(
-        psi_status=Subquery(latest_psi.values('category_scores__performance')[:1], output_field=FloatField()),
+
+    links_qs = Link.objects.filter(user=request.user).annotate(
+        psi_performance_score=Subquery(latest_psi.values('category_scores__performance')[:1], output_field=FloatField()),
         psi_last_checked=Subquery(latest_psi.values('fetch_time')[:1], output_field=DateTimeField()),
-        ssl_status=Subquery(latest_ssl.values('is_expired')[:1], output_field=CharField()),
+        ssl_is_expired=Subquery(latest_ssl.values('is_expired')[:1], output_field=CharField()),
         ssl_last_checked=Subquery(latest_ssl.values('checked_at')[:1], output_field=DateTimeField()),
-        ssl_expiry=Subquery(latest_ssl.values('not_after')[:1], output_field=DateTimeField()),
-        ssl_warnings=Subquery(latest_ssl.values('warnings')[:1], output_field=CharField()),
-        ssl_errors=Subquery(latest_ssl.values('errors')[:1], output_field=CharField()),
-        ssl_grade=Subquery(latest_ssl_labs.values('grade')[:1], output_field=CharField()),
-        ssl_labs_status=Subquery(latest_ssl_labs.values('status')[:1], output_field=CharField()),
+        ssl_expiry_date=Subquery(latest_ssl.values('not_after')[:1], output_field=DateTimeField()),
+        ssl_warnings_text=Subquery(latest_ssl.values('warnings')[:1], output_field=CharField()),
+        ssl_errors_text=Subquery(latest_ssl.values('errors')[:1], output_field=CharField()),
+        ssl_labs_grade=Subquery(latest_ssl_labs.values('grade')[:1], output_field=CharField()),
+        ssl_labs_scan_status=Subquery(latest_ssl_labs.values('status')[:1], output_field=CharField()),
     )
+    
     sites_data = []
-    for link in links:
-        # Uptime status: use stored values only
+    for link_item in links_qs:
         sites_data.append({
-            "link": link,
-            "psi_status": link.psi_status,
-            "psi_last_checked": link.psi_last_checked,
-            "ssl_status": not link.ssl_status if link.ssl_status is not None else None,
-            "ssl_last_checked": link.ssl_last_checked,
-            "ssl_expiry": link.ssl_expiry,
-            "ssl_warnings": link.ssl_warnings,
-            "ssl_errors": link.ssl_errors,
-            "ssl_grade": link.ssl_grade,
-            "ssl_labs_status": link.ssl_labs_status,
-            "uptime_status": link.uptime_last_status,
-            "uptime_last_checked": link.uptime_last_checked,
-            "sec_headers_status": None,
+            "link": link_item,
+            "psi_status": link_item.psi_performance_score,
+            "psi_last_checked": link_item.psi_last_checked,
+            "ssl_status": not bool(link_item.ssl_is_expired) if link_item.ssl_is_expired is not None else None,
+            "ssl_last_checked": link_item.ssl_last_checked,
+            "ssl_expiry": link_item.ssl_expiry_date,
+            "ssl_warnings": link_item.ssl_warnings_text,
+            "ssl_errors": link_item.ssl_errors_text,
+            "ssl_grade": link_item.ssl_labs_grade,
+            "ssl_labs_status": link_item.ssl_labs_scan_status,
+            "uptime_status": link_item.uptime_last_status,
+            "uptime_last_checked": link_item.uptime_last_checked,
+            "sec_headers_status": None, 
             "sec_headers_last_checked": None,
         })
+        
     html = render_to_string('links/dashboard_table_body.html', {'sites_data': sites_data}, request=request)
     return HttpResponse(html)

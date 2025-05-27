@@ -25,51 +25,57 @@
         <div class="alert alert-danger">{{ form.non_field_errors }}</div>
       {% endif %}
       {% for service in services %}
-      {# DEBUG: Rendering service block for {{ service.key }} #}
       <div class="mb-4 border-bottom pb-3">
         <h5>{{ service.name }}</h5>
         <div class="mb-2">
           {% with field_name='key_'|add:service.key %}
             {% with field=form|getitem:field_name %}
-              {{ field.label_tag }}
-              {{ field }}
-              {% if field.errors %}
-                <div class="text-danger small">{{ field.errors }}</div>
+              {% if field %}
+                {{ field.label_tag }}
+                {{ field }}
+                {% if field.errors %}
+                  <div class="text-danger small">{{ field.errors }}</div>
+                {% endif %}
+              {% else %}
+                <p class="text-danger">Error: Field '{{ field_name }}' not found in form.</p>
               {% endif %}
             {% endwith %}
           {% endwith %}
           {% with key_info=keys|getitem:service.key %}
-            {% if key_info.actual_key_value_for_template_debug_only == 'DUMMY_KEY_CHANGE_ME' %}
+            {% if key_info and key_info.key == 'DUMMY_KEY_CHANGE_ME' %}
               <span class="badge bg-warning text-dark mt-2">You must set your real API key!</span>
             {% endif %}
           {% endwith %}
         </div>
         <div class="mb-2">
           {% with key_info=keys|getitem:service.key %}
-          {# DEBUG: status for {{ service.key }} = {{ key_info.status }} #}
-          {% if key_info.status == 'set' %}
-            <span class="badge bg-success">Status: Set</span>
-          {% elif key_info.status == 'Not set' %}
-            <span class="badge bg-secondary">Status: Not set</span>
-          {% elif key_info.status == 'error' %}
-            <span class="badge bg-danger">Status: Error</span>
+          {% if key_info %}
+            {% if key_info.status == 'set' %}
+              <span class="badge bg-success">Status: Set</span>
+            {% elif key_info.status == 'Not set' %}
+              <span class="badge bg-secondary">Status: Not set</span>
+            {% elif key_info.status == 'error' %}
+              <span class="badge bg-danger">Status: Error</span>
+            {% else %}
+              <span class="badge bg-info">Status: {{ key_info.status|default:"Unknown" }}</span>
+            {% endif %}
+            {% if key_info.usage %}<span class="badge bg-info ms-2">Usage: {{ key_info.usage }}</span>{% endif %}
           {% else %}
-            <span class="badge bg-info"><span class="spinner-border spinner-border-sm"></span> Loading...</span>
+             <span class="badge bg-secondary">Status: Not set</span>
           {% endif %}
-          {% if key_info.usage %}<span class="badge bg-info ms-2">Usage: {{ key_info.usage }}</span>{% endif %}
           {% endwith %}
         </div>
         <div class="mb-2">
           <strong>Instructions:</strong> {{ service.instructions }}<br>
-          <a href="{{ service.help_url }}" target="_blank">Get your API key</a>
+          <a href="{{ service.help_url }}" target="_blank" rel="noopener noreferrer">Get your API key</a>
         </div>
         <div class="mb-2">
           <strong>Limitations:</strong> {{ service.limitations }}
         </div>
       </div>
       {% endfor %}
-      <button type="submit" class="btn btn-primary">Save</button>
+      <button type="submit" class="btn btn-primary">Save API Keys</button>
     </form>
   </div>
 </div>
-{% endblock %} 
+{% endblock %}

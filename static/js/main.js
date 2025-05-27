@@ -1,5 +1,8 @@
 // Show loading spinner
 function showLoading() {
+    const existingSpinner = document.querySelector('.spinner-overlay');
+    if (existingSpinner) return; // Prevent multiple spinners
+
     const spinner = document.createElement('div');
     spinner.className = 'spinner-overlay';
     spinner.innerHTML = `
@@ -36,13 +39,24 @@ function getCookie(name) {
 
 // Show toast notification
 function showToast(message, type = 'success') {
-    const toast = document.createElement('div');
-    toast.className = `toast align-items-center text-white bg-${type} border-0`;
-    toast.setAttribute('role', 'alert');
-    toast.setAttribute('aria-live', 'assertive');
-    toast.setAttribute('aria-atomic', 'true');
+    const toastContainer = document.getElementById('toastPlacement');
+    if (!toastContainer) {
+        console.error('Toast container #toastPlacement not found.');
+        // Fallback or create a default container if needed
+        const tempContainer = document.createElement('div');
+        tempContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+        tempContainer.style.zIndex = "1090"; // Ensure it's above modals
+        document.body.appendChild(tempContainer);
+         // Use this tempContainer for the current toast
+    }
     
-    toast.innerHTML = `
+    const toastEl = document.createElement('div'); // Renamed
+    toastEl.className = `toast align-items-center text-white bg-${type} border-0`;
+    toastEl.setAttribute('role', 'alert');
+    toastEl.setAttribute('aria-live', 'assertive');
+    toastEl.setAttribute('aria-atomic', 'true');
+    
+    toastEl.innerHTML = `
         <div class="d-flex">
             <div class="toast-body">
                 ${message}
@@ -51,89 +65,145 @@ function showToast(message, type = 'success') {
         </div>
     `;
     
-    const container = document.createElement('div');
-    container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
-    container.appendChild(toast);
-    document.body.appendChild(container);
+    // Append to the designated container or the temporary one
+    (toastContainer || document.querySelector('.toast-container')).appendChild(toastEl);
     
-    const bsToast = new bootstrap.Toast(toast);
+    const bsToast = new bootstrap.Toast(toastEl);
     bsToast.show();
     
-    toast.addEventListener('hidden.bs.toast', () => {
-        container.remove();
+    toastEl.addEventListener('hidden.bs.toast', () => {
+        toastEl.remove();
+        // If a temporary container was used and is now empty, remove it
+        const tempC = document.querySelector('.toast-container');
+        if (tempC && !tempC.hasChildNodes() && tempC !== toastContainer){
+            tempC.remove();
+        }
     });
 }
 
 // Handle AJAX errors
-function handleAjaxError(error) {
+function handleAjaxError(error, defaultMessage = 'An error occurred. Please try again.') {
     console.error('AJAX Error:', error);
-    showToast('An error occurred. Please try again.', 'danger');
+    let message = defaultMessage;
+    if (error && error.message) {
+        message = error.message;
+    } else if (typeof error === 'string') {
+        message = error;
+    }
+    showToast(message, 'danger');
 }
 
-// Initialize tooltips
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tooltips
     const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
     tooltipTriggerList.map(function(tooltipTriggerEl) {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
-});
 
-// Add detailed logging for all submit buttons (especially settings form)
-document.querySelectorAll('button[type="submit"]').forEach(button => {
-    button.addEventListener('click', function(event) {
-        console.log("Submit button clicked. Form:", this.form);
-        if (this.form) {
-            console.log("Form validity check:", this.form.checkValidity());
-            if (this.form.checkValidity()) {
-                this.disabled = true;
-                this.innerHTML = `
-                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                    Loading...
-                `;
-                console.log("Form is valid, attempting default submission.");
-                // Default submission will proceed
-            } else {
-                console.log("Form is NOT valid. Forcing reportValidity().");
-                this.form.reportValidity();
-                // event.preventDefault(); // Optionally prevent submission if you want to handle errors customly
+    // Submit button loading state
+    document.querySelectorAll('form').forEach(form => {
+        form.addEventListener('submit', function(event) {
+            const submitButton = form.querySelector('button[type="submit"]');
+            if (submitButton && !submitButton.classList.contains('no-disable')) { // Add 'no-disable' class to buttons you don't want to disable
+                if (form.checkValidity()) {
+                    submitButton.disabled = true;
+                    submitButton.innerHTML = `
+                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                        Loading...
+                    `;
+                } else {
+                    // If form is invalid, modern browsers will show validation messages.
+                    // No need to manually call reportValidity() usually, as submit event implies it.
+                    // Re-enable button if submission is prevented by browser validation
+                    // This might be tricky as the 'submit' event might not even fire if invalid.
+                    // A 'click' listener on the button might be more robust for this part.
+                }
             }
-        } else {
-            console.error("Button is not associated with a form.");
-        }
+        });
     });
+     // More robust submit button handling for loading state
+    document.querySelectorAll('button[type="submit"]').forEach(button => {
+        button.addEventListener('click', function(event) {
+            const form = this.form;
+            if (form && !this.classList.contains('no-disable')) {
+                if (form.checkValidity()) {
+                    // If the form is valid, it will submit. The 'submit' listener above will handle disabling.
+                    // This click listener doesn't need to do much if valid.
+                } else {
+                    // If form is invalid, browser's default validation will trigger.
+                    // Explicitly call reportValidity() if you want to ensure messages show
+                    // or if you have custom validation logic before this.
+                    if (typeof form.reportValidity === 'function') {
+                        form.reportValidity();
+                    }
+                    // Do not disable the button here, as submission is prevented.
+                }
+            }
+        });
+    });
+
+
+    // Add a placement for toast messages in base.html if it doesn't exist
+    if (!document.getElementById('toastPlacement')) {
+        const toastPlacement = document.createElement('div');
+        toastPlacement.id = 'toastPlacement';
+        toastPlacement.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+        toastPlacement.style.zIndex = "1090"; // Higher than modals (Bootstrap modal z-index is 1055)
+        document.body.appendChild(toastPlacement);
+    }
+
 });
 
 // --- Bootstrap Modal for Confirm ---
-function showConfirm(message, callback) {
-    let modal = document.getElementById('confirmModal');
-    if (!modal) {
-        modal = document.createElement('div');
-        modal.innerHTML = `
+function showConfirm(message, callback, title = 'Confirm Action') {
+    let modalEl = document.getElementById('confirmModal');
+    if (!modalEl) {
+        const modalDiv = document.createElement('div');
+        modalDiv.innerHTML = `
         <div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
           <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
               <div class="modal-header">
-                <h5 class="modal-title" id="confirmModalLabel">Confirm</h5>
+                <h5 class="modal-title" id="confirmModalLabel">Confirm Action</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
               </div>
               <div class="modal-body" id="confirmModalBody"></div>
               <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-danger" id="confirmModalOk">Delete</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="confirmModalCancel">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmModalOk">OK</button>
               </div>
             </div>
           </div>
         </div>`;
-        document.body.appendChild(modal);
+        document.body.appendChild(modalDiv.firstChild); // Append the modal element itself
+        modalEl = document.getElementById('confirmModal');
     }
-    document.getElementById('confirmModalBody').innerHTML = message;
+    
+    document.getElementById('confirmModalLabel').textContent = title;
+    document.getElementById('confirmModalBody').innerHTML = message; // Use innerHTML to allow HTML in message
+    
     const okBtn = document.getElementById('confirmModalOk');
-    const bsModal = new bootstrap.Modal(document.getElementById('confirmModal'));
-    function onOk() {
-        okBtn.removeEventListener('click', onOk);
+    const cancelBtn = document.getElementById('confirmModalCancel');
+    const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl); // Use getOrCreateInstance
+
+    // Clone and replace the OK button to remove previous event listeners
+    const newOkBtn = okBtn.cloneNode(true);
+    okBtn.parentNode.replaceChild(newOkBtn, okBtn);
+
+    newOkBtn.addEventListener('click', function onOkClick() {
         bsModal.hide();
-        callback();
-    }
-    okBtn.addEventListener('click', onOk);
+        callback(true); // Pass true to indicate confirmation
+    });
+    
+    // Also handle cancel/dismiss actions
+    const onModalHidden = () => {
+        // Check if callback was already called by OK button
+        // This part might be tricky if you need to distinguish between OK and other close actions
+        // For simplicity, we assume callback handles its own logic if already executed.
+        modalEl.removeEventListener('hidden.bs.modal', onModalHidden);
+    };
+    modalEl.addEventListener('hidden.bs.modal', onModalHidden, { once: true });
+
+
     bsModal.show();
-} 
+}

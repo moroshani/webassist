@@ -7,19 +7,21 @@ register = template.Library()
 def getitem(obj, key):
     if obj is None:
         return None
-    # For dict-like objects
-    if hasattr(obj, "get"):
-        return obj.get(key, None)
-    # For Django forms (support bracket access)
+    # For Django forms and dict-like objects
     try:
         return obj[key]
     except (KeyError, TypeError, AttributeError):
+        # Fallback for objects that might have a .get method (though less common for forms directly)
+        if hasattr(obj, "get"):
+            return obj.get(key)
         return None
 
 
 @register.filter
 def split(value, delimiter):
-    return value.split(delimiter)
+    if value:
+        return value.split(delimiter)
+    return []
 
 
 @register.filter
