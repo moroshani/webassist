@@ -23,150 +23,150 @@
 </ul>
 <div class="tab-content" id="psiHistoryTabsContent">
   <div class="tab-pane fade show active" id="history" role="tabpanel" aria-labelledby="history-tab">
-    <div class="mb-3 d-flex justify-content-between align-items-center">
-        <div class="d-flex align-items-center">
-            <input type="date" id="startDate" class="form-control form-control-sm me-2" placeholder="Start date">
-            <input type="date" id="endDate" class="form-control form-control-sm me-2" placeholder="End date">
-            <input type="number" id="minScore" class="form-control form-control-sm me-2" placeholder="Min score" min="0" max="1" step="0.01">
-            <input type="number" id="maxScore" class="form-control form-control-sm me-2" placeholder="Max score" min="0" max="1" step="0.01">
-            <input type="text" id="reportSearch" class="form-control w-auto" placeholder="Search reports...">
-        </div>
-        <div>
-            <button id="exportReportsBtn" class="btn btn-outline-success btn-sm ms-2"><i class="bi bi-download"></i> Export JSON</button>
-            <button id="exportReportsCsvBtn" class="btn btn-outline-primary btn-sm ms-2"><i class="bi bi-file-earmark-spreadsheet"></i> Export CSV</button>
-        </div>
+<div class="mb-3 d-flex justify-content-between align-items-center">
+    <div class="d-flex align-items-center">
+        <input type="date" id="startDate" class="form-control form-control-sm me-2" placeholder="Start date">
+        <input type="date" id="endDate" class="form-control form-control-sm me-2" placeholder="End date">
+        <input type="number" id="minScore" class="form-control form-control-sm me-2" placeholder="Min score" min="0" max="1" step="0.01">
+        <input type="number" id="maxScore" class="form-control form-control-sm me-2" placeholder="Max score" min="0" max="1" step="0.01">
+        <input type="text" id="reportSearch" class="form-control w-auto" placeholder="Search reports...">
     </div>
+    <div>
+        <button id="exportReportsBtn" class="btn btn-outline-success btn-sm ms-2"><i class="bi bi-download"></i> Export JSON</button>
+        <button id="exportReportsCsvBtn" class="btn btn-outline-primary btn-sm ms-2"><i class="bi bi-file-earmark-spreadsheet"></i> Export CSV</button>
+    </div>
+</div>
 
-    <div class="table-responsive">
-        <ul class="nav nav-tabs mb-3" id="reportTabs" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="mobile-tab" data-bs-toggle="tab" data-bs-target="#mobile" type="button" role="tab" aria-controls="mobile" aria-selected="true">Mobile</button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="desktop-tab" data-bs-toggle="tab" data-bs-target="#desktop" type="button" role="tab" aria-controls="desktop" aria-selected="false">Desktop</button>
-            </li>
-        </ul>
-        <div class="tab-content" id="reportTabsContent">
-            <div class="tab-pane fade show active" id="mobile" role="tabpanel" aria-labelledby="mobile-tab">
-                <table class="reports-table table table-striped table-hover">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Time</th>
-                            <th>Performance</th>
-                            <th>Accessibility</th>
-                            <th>Best Practices</th>
-                            <th>SEO</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for report in mobile_reports %}
-                        <tr data-group-id="{{ report.group.id }}">
-                            <td>{{ report.fetch_time|date:"Y-m-d" }}</td>
-                            <td>{{ report.fetch_time|date:"H:i:s" }}</td>
-                            <td>{% if report.category_scores %}
-                                {% with score=report.category_scores.performance|mul:100 %}
-                                    <span class="badge {% if score >= 90 %}bg-success{% elif score >= 50 %}bg-warning text-dark{% else %}bg-danger{% endif %}">{{ score|floatformat:0|default:"N/A" }}</span>
-                                {% endwith %}
-                            {% else %}N/A{% endif %}</td>
-                            <td>{% if report.category_scores %}
-                                {% with score=report.category_scores.accessibility|mul:100 %}
-                                    <span class="badge {% if score >= 90 %}bg-success{% elif score >= 50 %}bg-warning text-dark{% else %}bg-danger{% endif %}">{{ score|floatformat:0|default:"N/A" }}</span>
-                                {% endwith %}
-                            {% else %}N/A{% endif %}</td>
-                            <td>{% if report.category_scores %}
-                                {% with score=report.category_scores.best_practices|mul:100 %}
-                                    <span class="badge {% if score >= 90 %}bg-success{% elif score >= 50 %}bg-warning text-dark{% else %}bg-danger{% endif %}">{{ score|floatformat:0|default:"N/A" }}</span>
-                                {% endwith %}
-                            {% else %}N/A{% endif %}</td>
-                            <td>{% if report.category_scores %}
-                                {% with score=report.category_scores.seo|mul:100 %}
-                                    <span class="badge {% if score >= 90 %}bg-success{% elif score >= 50 %}bg-warning text-dark{% else %}bg-danger{% endif %}">{{ score|floatformat:0|default:"N/A" }}</span>
-                                {% endwith %}
-                            {% else %}N/A{% endif %}</td>
-                            <td>
-                                <a href="{% url 'psi_report_detail' report.id %}" class="btn btn-outline-primary btn-sm" title="View Details">
-                                    <i class="bi bi-bar-chart"></i>
-                                </a>
-                                <button class="btn btn-outline-danger btn-sm delete-report-group-btn" 
-                                    data-group-id="{{ report.group.id }}"
-                                    data-link-title="{{ link.title }}"
-                                    data-date="{{ report.fetch_time|date:'Y-m-d' }}"
-                                    data-time="{{ report.fetch_time|date:'H:i:s' }}"
-                                    title="Delete Both Reports">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="7" class="text-center">No mobile reports found.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            <div class="tab-pane fade" id="desktop" role="tabpanel" aria-labelledby="desktop-tab">
-                <table class="reports-table table table-striped table-hover">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Time</th>
-                            <th>Performance</th>
-                            <th>Accessibility</th>
-                            <th>Best Practices</th>
-                            <th>SEO</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for report in desktop_reports %}
-                        <tr data-group-id="{{ report.group.id }}">
-                            <td>{{ report.fetch_time|date:"Y-m-d" }}</td>
-                            <td>{{ report.fetch_time|date:"H:i:s" }}</td>
-                            <td>{% if report.category_scores %}
-                                {% with score=report.category_scores.performance|mul:100 %}
-                                    <span class="badge {% if score >= 90 %}bg-success{% elif score >= 50 %}bg-warning text-dark{% else %}bg-danger{% endif %}">{{ score|floatformat:0|default:"N/A" }}</span>
-                                {% endwith %}
-                            {% else %}N/A{% endif %}</td>
-                            <td>{% if report.category_scores %}
-                                {% with score=report.category_scores.accessibility|mul:100 %}
-                                    <span class="badge {% if score >= 90 %}bg-success{% elif score >= 50 %}bg-warning text-dark{% else %}bg-danger{% endif %}">{{ score|floatformat:0|default:"N/A" }}</span>
-                                {% endwith %}
-                            {% else %}N/A{% endif %}</td>
-                            <td>{% if report.category_scores %}
-                                {% with score=report.category_scores.best_practices|mul:100 %}
-                                    <span class="badge {% if score >= 90 %}bg-success{% elif score >= 50 %}bg-warning text-dark{% else %}bg-danger{% endif %}">{{ score|floatformat:0|default:"N/A" }}</span>
-                                {% endwith %}
-                            {% else %}N/A{% endif %}</td>
-                            <td>{% if report.category_scores %}
-                                {% with score=report.category_scores.seo|mul:100 %}
-                                    <span class="badge {% if score >= 90 %}bg-success{% elif score >= 50 %}bg-warning text-dark{% else %}bg-danger{% endif %}">{{ score|floatformat:0|default:"N/A" }}</span>
-                                {% endwith %}
-                            {% else %}N/A{% endif %}</td>
-                            <td>
-                                <a href="{% url 'psi_report_detail' report.id %}" class="btn btn-outline-primary btn-sm" title="View Details">
-                                    <i class="bi bi-bar-chart"></i>
-                                </a>
-                                <button class="btn btn-outline-danger btn-sm delete-report-group-btn" 
-                                    data-group-id="{{ report.group.id }}"
-                                    data-link-title="{{ link.title }}"
-                                    data-date="{{ report.fetch_time|date:'Y-m-d' }}"
-                                    data-time="{{ report.fetch_time|date:'H:i:s' }}"
-                                    title="Delete Both Reports">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="7" class="text-center">No desktop reports found.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+<div class="table-responsive">
+    <ul class="nav nav-tabs mb-3" id="reportTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="mobile-tab" data-bs-toggle="tab" data-bs-target="#mobile" type="button" role="tab" aria-controls="mobile" aria-selected="true">Mobile</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="desktop-tab" data-bs-toggle="tab" data-bs-target="#desktop" type="button" role="tab" aria-controls="desktop" aria-selected="false">Desktop</button>
+        </li>
+    </ul>
+    <div class="tab-content" id="reportTabsContent">
+        <div class="tab-pane fade show active" id="mobile" role="tabpanel" aria-labelledby="mobile-tab">
+            <table class="reports-table table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Performance</th>
+                        <th>Accessibility</th>
+                        <th>Best Practices</th>
+                        <th>SEO</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for report in mobile_reports %}
+                    <tr data-group-id="{{ report.group.id }}">
+                        <td>{{ report.fetch_time|date:"Y-m-d" }}</td>
+                        <td>{{ report.fetch_time|date:"H:i:s" }}</td>
+                        <td>{% if report.category_scores %}
+                            {% with score=report.category_scores.performance|mul:100 %}
+                                <span class="badge {% if score >= 90 %}bg-success{% elif score >= 50 %}bg-warning text-dark{% else %}bg-danger{% endif %}">{{ score|floatformat:0|default:"N/A" }}</span>
+                            {% endwith %}
+                        {% else %}N/A{% endif %}</td>
+                        <td>{% if report.category_scores %}
+                            {% with score=report.category_scores.accessibility|mul:100 %}
+                                <span class="badge {% if score >= 90 %}bg-success{% elif score >= 50 %}bg-warning text-dark{% else %}bg-danger{% endif %}">{{ score|floatformat:0|default:"N/A" }}</span>
+                            {% endwith %}
+                        {% else %}N/A{% endif %}</td>
+                        <td>{% if report.category_scores %}
+                            {% with score=report.category_scores.best_practices|mul:100 %}
+                                <span class="badge {% if score >= 90 %}bg-success{% elif score >= 50 %}bg-warning text-dark{% else %}bg-danger{% endif %}">{{ score|floatformat:0|default:"N/A" }}</span>
+                            {% endwith %}
+                        {% else %}N/A{% endif %}</td>
+                        <td>{% if report.category_scores %}
+                            {% with score=report.category_scores.seo|mul:100 %}
+                                <span class="badge {% if score >= 90 %}bg-success{% elif score >= 50 %}bg-warning text-dark{% else %}bg-danger{% endif %}">{{ score|floatformat:0|default:"N/A" }}</span>
+                            {% endwith %}
+                        {% else %}N/A{% endif %}</td>
+                        <td>
+                            <a href="{% url 'psi_report_detail' report.id %}" class="btn btn-outline-primary btn-sm" title="View Details">
+                                <i class="bi bi-bar-chart"></i>
+                            </a>
+                            <button class="btn btn-outline-danger btn-sm delete-report-group-btn" 
+                                data-group-id="{{ report.group.id }}"
+                                data-link-title="{{ link.title }}"
+                                data-date="{{ report.fetch_time|date:'Y-m-d' }}"
+                                data-time="{{ report.fetch_time|date:'H:i:s' }}"
+                                title="Delete Both Reports">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center">No mobile reports found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="tab-pane fade" id="desktop" role="tabpanel" aria-labelledby="desktop-tab">
+            <table class="reports-table table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Performance</th>
+                        <th>Accessibility</th>
+                        <th>Best Practices</th>
+                        <th>SEO</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for report in desktop_reports %}
+                    <tr data-group-id="{{ report.group.id }}">
+                        <td>{{ report.fetch_time|date:"Y-m-d" }}</td>
+                        <td>{{ report.fetch_time|date:"H:i:s" }}</td>
+                        <td>{% if report.category_scores %}
+                            {% with score=report.category_scores.performance|mul:100 %}
+                                <span class="badge {% if score >= 90 %}bg-success{% elif score >= 50 %}bg-warning text-dark{% else %}bg-danger{% endif %}">{{ score|floatformat:0|default:"N/A" }}</span>
+                            {% endwith %}
+                        {% else %}N/A{% endif %}</td>
+                        <td>{% if report.category_scores %}
+                            {% with score=report.category_scores.accessibility|mul:100 %}
+                                <span class="badge {% if score >= 90 %}bg-success{% elif score >= 50 %}bg-warning text-dark{% else %}bg-danger{% endif %}">{{ score|floatformat:0|default:"N/A" }}</span>
+                            {% endwith %}
+                        {% else %}N/A{% endif %}</td>
+                        <td>{% if report.category_scores %}
+                            {% with score=report.category_scores.best_practices|mul:100 %}
+                                <span class="badge {% if score >= 90 %}bg-success{% elif score >= 50 %}bg-warning text-dark{% else %}bg-danger{% endif %}">{{ score|floatformat:0|default:"N/A" }}</span>
+                            {% endwith %}
+                        {% else %}N/A{% endif %}</td>
+                        <td>{% if report.category_scores %}
+                            {% with score=report.category_scores.seo|mul:100 %}
+                                <span class="badge {% if score >= 90 %}bg-success{% elif score >= 50 %}bg-warning text-dark{% else %}bg-danger{% endif %}">{{ score|floatformat:0|default:"N/A" }}</span>
+                            {% endwith %}
+                        {% else %}N/A{% endif %}</td>
+                        <td>
+                            <a href="{% url 'psi_report_detail' report.id %}" class="btn btn-outline-primary btn-sm" title="View Details">
+                                <i class="bi bi-bar-chart"></i>
+                            </a>
+                            <button class="btn btn-outline-danger btn-sm delete-report-group-btn" 
+                                data-group-id="{{ report.group.id }}"
+                                data-link-title="{{ link.title }}"
+                                data-date="{{ report.fetch_time|date:'Y-m-d' }}"
+                                data-time="{{ report.fetch_time|date:'H:i:s' }}"
+                                title="Delete Both Reports">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center">No desktop reports found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
         </div>
     </div>
   </div>
@@ -532,7 +532,7 @@
     {% else %}
     <div class="alert alert-info mt-4">Select two date ranges and click "Compare" to view side-by-side analytics.</div>
     {% endif %}
-  </div>
+    </div>
 </div>
 
 {% if page_obj.has_other_pages %}

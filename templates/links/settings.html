@@ -1,22 +1,63 @@
 {% extends 'base.html' %}
+{% load links_extras %}
 {% block title %}Settings | API Keys{% endblock %}
 {% block content %}
 <h1 class="mb-4">Settings</h1>
 <div class="card mb-4">
   <div class="card-header bg-primary text-white"><i class="bi bi-key"></i> API Keys</div>
   <div class="card-body">
-    <form method="post">
+    {% if form_debug %}
+      <div class="alert alert-info">
+        <strong>Form Debug:</strong>
+        <ul>
+          {% for msg in form_debug %}<li>{{ msg }}</li>{% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+    {% if form_valid is not None %}
+      <div class="alert alert-{{ 'success' if form_valid else 'danger' }}">
+        Form valid: {{ form_valid }}
+      </div>
+    {% endif %}
+    <form method="post" action="{% url 'settings' %}">
       {% csrf_token %}
+      {% if form.non_field_errors %}
+        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+      {% endif %}
       {% for service in services %}
+      {# DEBUG: Rendering service block for {{ service.key }} #}
       <div class="mb-4 border-bottom pb-3">
         <h5>{{ service.name }}</h5>
         <div class="mb-2">
-          <label for="key_{{ service.key }}" class="form-label">API Key</label>
-          <input type="password" class="form-control" id="key_{{ service.key }}" name="key_{{ service.key }}" value="{{ keys[service.key].key|default:'' }}" autocomplete="off" placeholder="Enter your API key">
+          {% with field_name='key_'|add:service.key %}
+            {% with field=form|getitem:field_name %}
+              {{ field.label_tag }}
+              {{ field }}
+              {% if field.errors %}
+                <div class="text-danger small">{{ field.errors }}</div>
+              {% endif %}
+            {% endwith %}
+          {% endwith %}
+          {% with key_obj=keys|getitem:service.key %}
+            {% if key_obj.key == 'DUMMY_KEY_CHANGE_ME' %}
+              <span class="badge bg-warning text-dark mt-2">You must set your real API key!</span>
+            {% endif %}
+          {% endwith %}
         </div>
         <div class="mb-2">
-          <span class="badge bg-secondary">Status: {{ keys[service.key].status|default:'Not set' }}</span>
-          {% if keys[service.key].usage %}<span class="badge bg-info ms-2">Usage: {{ keys[service.key].usage }}</span>{% endif %}
+          {% with key_obj=keys|getitem:service.key %}
+          {# DEBUG: status for {{ service.key }} = {{ key_obj.status }} #}
+          {% if key_obj.status == 'set' %}
+            <span class="badge bg-success">Status: Set</span>
+          {% elif key_obj.status == 'Not set' %}
+            <span class="badge bg-secondary">Status: Not set</span>
+          {% elif key_obj.status == 'error' %}
+            <span class="badge bg-danger">Status: Error</span>
+          {% else %}
+            <span class="badge bg-info"><span class="spinner-border spinner-border-sm"></span> Loading...</span>
+          {% endif %}
+          {% if key_obj.usage %}<span class="badge bg-info ms-2">Usage: {{ key_obj.usage }}</span>{% endif %}
+          {% endwith %}
         </div>
         <div class="mb-2">
           <strong>Instructions:</strong> {{ service.instructions }}<br>
@@ -25,9 +66,9 @@
         <div class="mb-2">
           <strong>Limitations:</strong> {{ service.limitations }}
         </div>
-        <button type="submit" class="btn btn-primary">Save</button>
       </div>
       {% endfor %}
+      <button type="submit" class="btn btn-primary">Save</button>
     </form>
   </div>
 </div>

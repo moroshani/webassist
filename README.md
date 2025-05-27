@@ -40,42 +40,42 @@ WebAssist is a Django-based web assistant for monitoring, analyzing, and improvi
 ## Installation
 
 1. Clone the repository:
-   ```bash
+```bash
    git clone https://github.com/moroshani/webassist.git
-   cd webassist
-   ```
+cd webassist
+```
 2. Create and activate a virtual environment:
-   ```bash
-   python -m venv venv
+```bash
+python -m venv venv
    # On Windows:
    venv\Scripts\activate
    # On macOS/Linux:
    source venv/bin/activate
-   ```
+```
 3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+```bash
+pip install -r requirements.txt
+```
 4. Set up environment variables:
    - Create a `.env` file in the project root with at least:
      ```env
      DJANGO_SECRET_KEY=your_django_secret_key
-     PSI_API_KEY=your_pagespeed_insights_api_key
+PSI_API_KEY=your_pagespeed_insights_api_key
      UPTIMEROBOT_API_KEY=your_uptimerobot_api_key
-     ```
+```
    - The app will not start unless these are set.
 5. Run migrations:
-   ```bash
-   python manage.py migrate
-   ```
+```bash
+python manage.py migrate
+```
 6. Create a superuser:
-   ```bash
-   python manage.py createsuperuser
-   ```
+```bash
+python manage.py createsuperuser
+```
 7. Run the development server:
-   ```bash
-   python manage.py runserver
-   ```
+```bash
+python manage.py runserver
+```
 
 ## Usage
 

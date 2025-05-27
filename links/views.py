@@ -19,6 +19,7 @@ from django_filters import CharFilter, FilterSet
 
 from .models import Link, Page, PSIReport, PSIReportGroup, UserAPIKey
 from .services import PSIService, SSLLabsService, SSLService, UptimeRobotService
+from .forms import APIKeyForm
 
 
 class LinkFilter(FilterSet):
@@ -811,45 +812,53 @@ def export_uptime_logs_json(request, link_id):
 
 @login_required
 def settings_view(request):
-    # List of all services and their help info
     SERVICES = [
-        {
-            "key": "psi",
-            "name": "Google PageSpeed Insights",
-            "help_url": "https://developers.google.com/speed/docs/insights/v5/get-started",
-            "instructions": "Create a project in Google Cloud, enable the PageSpeed Insights API, and generate an API key.",
-            "limitations": "Free tier: 25,000 requests/day. Quotas may change.",
-        },
-        {
-            "key": "uptimerobot",
-            "name": "UptimeRobot",
-            "help_url": "https://uptimerobot.com/dashboard#mySettings",
-            "instructions": "Log in to UptimeRobot, go to My Settings, and copy your Main API Key.",
-            "limitations": "Free tier: 50 monitors, 5-minute checks. Quotas may change.",
-        },
+        {"key": "psi", "name": "Google PageSpeed Insights", "help_url": "https://developers.google.com/speed/docs/insights/v5/get-started", "instructions": "Create a project in Google Cloud, enable the PageSpeed Insights API, and generate an API key.", "limitations": "Free tier: 25,000 requests/day. Quotas may change."},
+        {"key": "uptimerobot", "name": "UptimeRobot", "help_url": "https://uptimerobot.com/dashboard#mySettings", "instructions": "Log in to UptimeRobot, go to My Settings, and copy your Main API Key.", "limitations": "Free tier: 50 monitors, 5-minute checks. Quotas may change."},
     ]
     user = request.user
-    keys = {k.service: k for k in UserAPIKey.objects.filter(user=user)}
+    form_debug = []
+    form = APIKeyForm(request.POST or None, user=user)
+    just_posted = False
+    form_valid = None
     if request.method == "POST":
-        for service in SERVICES:
-            field = f"key_{service['key']}"
-            if field in request.POST:
-                value = request.POST.get(field).strip()
+        form_debug.append("[DEBUG] POST received")
+        if form.is_valid():
+            form_debug.append("[DEBUG] Form is valid")
+            form_debug.append(f"[DEBUG] Cleaned data: {form.cleaned_data}")
+            for service in SERVICES:
+                field = f"key_{service['key']}"
+                value = form.cleaned_data.get(field, "").strip()
                 if value:
-                    obj, created = UserAPIKey.objects.get_or_create(
-                        user=user, service=service["key"]
-                    )
+                    obj, created = UserAPIKey.objects.get_or_create(user=user, service=service["key"])
                     obj.key = value
-                    obj.status = "unknown"
+                    obj.status = "set"
                     obj.save()
+                    form_debug.append(f"[DEBUG] Saved key for {service['key']} (created={created})")
                     messages.success(request, f"API key for {service['name']} saved.")
-        return redirect("settings")
+            just_posted = True
+            form_valid = True
+            return redirect("settings")
+        else:
+            form_debug.append("[DEBUG] Form is NOT valid")
+            form_debug.append(f"[DEBUG] Errors: {form.errors}")
+            form_valid = False
+    # For display/status
+    keys = {k.service: k for k in UserAPIKey.objects.filter(user=user)}
+    for service in SERVICES:
+        k = keys.get(service["key"])
+        if k:
+            k.status = "set" if k.key else "Not set"
     return render(
         request,
         "links/settings.html",
         {
             "services": SERVICES,
             "keys": keys,
+            "form": form,
+            "just_posted": just_posted,
+            "form_debug": form_debug,
+            "form_valid": form_valid,
         },
     )
 
