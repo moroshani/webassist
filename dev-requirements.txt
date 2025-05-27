@@ -6,7 +6,6 @@ pytest-cov
 black
 isort
 types-requests
-# Added from main requirements.txt previously
 django-pytest 
 pytest-django
 coverage

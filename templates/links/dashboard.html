@@ -1,8 +1,6 @@
+<!-- Triggering clean build: 2024-05-26 -->
 {% extends 'base.html' %}
-{% load static %} {# Typically not needed if base.html already loads it, but doesn't hurt #}
-
 {% block title %}Dashboard | WebAssist{% endblock %}
-
 {% block content %}
 <h1 class="mb-4"><i class="bi bi-speedometer2"></i> Dashboard</h1>
 <div class="d-flex justify-content-end mb-3">
@@ -15,8 +13,8 @@
     </div>
     <div>
       <button id="refreshTable" class="btn btn-outline-light btn-sm me-2"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
-      <a href="{% url 'export_links_csv' %}" class="btn btn-outline-light btn-sm"><i class="bi bi-file-earmark-spreadsheet"></i> Export CSV</a>
-      </div>
+      <a href="{% url 'export_links_csv' %}" class="btn btn-outline-light btn-sm"><i class="bi bi-file-earmark-spreadsheet"></i> Export</a>
+    </div>
   </div>
   <div class="card-body p-0">
     <div class="table-responsive">
@@ -26,13 +24,72 @@
             <th>Site</th>
             <th>PSI</th>
             <th>Uptime</th>
-            <th>SSL Cert</th>
+            <th>SSL</th>
             <th>SSL Labs</th>
-            <th>Actions</th>
+            <th>Features</th>
           </tr>
         </thead>
-        <tbody id="dashboardTableBody"> {# Added ID for easier refresh targeting #}
-          {% include "links/dashboard_table_body.html" %} {# Include the partial #}
+        <tbody>
+          {% for site in sites_data %}
+          <tr>
+            <td><strong>{{ site.link.title }}</strong><br><small>{{ site.link.url }}</small></td>
+            <td>
+              {% if site.psi_status is not None %}
+                <span class="badge bg-success">{{ site.psi_status|floatformat:2 }}</span>
+                <br><small>{{ site.psi_last_checked|date:'Y-m-d H:i' }}</small>
+              {% else %}
+                <span class="badge bg-secondary">N/A</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if site.uptime_status is not None %}
+                <span class="badge bg-success">Up</span>
+                <br><small>{{ site.uptime_last_checked|date:'Y-m-d H:i' }}</small>
+              {% elif site.link.uptime_last_status == 'error' %}
+                <span class="badge bg-danger">Error</span>
+              {% else %}
+                <span class="badge bg-secondary">N/A</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if site.ssl_expiry %}
+                <span class="badge bg-{{ site.ssl_status|yesno:'success,danger,secondary' }}">
+                  {% if site.psi_status is not None %}
+                    {% if site.psi_status >= 0.9 %}
+                      Good
+                    {% elif site.psi_status >= 0.5 %}
+                      Average
+                    {% else %}
+                      Poor
+                    {% endif %}
+                  {% else %}
+                    Unknown
+                  {% endif %}
+                </span>
+              {% else %}
+                <span class="badge bg-secondary">Unknown</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if site.link.uptime_last_status == '2' %}
+                <span class="badge bg-success">Up</span>
+              {% elif site.link.uptime_last_status == '9' %}
+                <span class="badge bg-danger">Down</span>
+              {% elif site.link.uptime_last_status == 'error' %}
+                <span class="badge bg-warning text-dark">Error</span>
+              {% else %}
+                <span class="badge bg-secondary">Unknown</span>
+              {% endif %}
+            </td>
+            <td>
+              <a href="{% url 'features_page' site.link.id %}" class="btn btn-outline-info btn-sm">Features</a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="text-center text-muted">No sites yet. Add your first site!</td>
+          </tr>
+          {% endfor %}
         </tbody>
       </table>
     </div>
@@ -47,21 +104,19 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
-        <form id="addSiteForm"> {# Added form tag for better structure #}
-          <div class="mb-3">
-            <label for="addSiteTitle" class="form-label">Site Title</label>
-            <input type="text" class="form-control" id="addSiteTitle" required>
-          </div>
-          <div class="mb-3">
-            <label for="addSiteUrl" class="form-label">Site URL</label>
-            <input type="url" class="form-control" id="addSiteUrl" placeholder="https://example.com" required>
-          </div>
-          <div class="mb-3">
-            <label for="addSiteDescription" class="form-label">Description (optional)</label>
-            <textarea class="form-control" id="addSiteDescription"></textarea>
-          </div>
-          <div class="text-danger" id="addSiteError"></div>
-        </form>
+        <div class="mb-3">
+          <label for="addSiteTitle" class="form-label">Site Title</label>
+          <input type="text" class="form-control" id="addSiteTitle" required>
+        </div>
+        <div class="mb-3">
+          <label for="addSiteUrl" class="form-label">Site URL</label>
+          <input type="url" class="form-control" id="addSiteUrl" required>
+        </div>
+        <div class="mb-3">
+          <label for="addSiteDescription" class="form-label">Description (optional)</label>
+          <textarea class="form-control" id="addSiteDescription"></textarea>
+        </div>
+        <div class="text-danger" id="addSiteError"></div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -73,152 +128,70 @@
 {% endblock %}
 
 {% block extra_js %}
-{# main.js is already loaded in base.html, so it's not needed here again. #}
-{# Only page-specific JS should go here. #}
 <script>
 function openAddSiteModal() {
-  document.getElementById('addSiteForm').reset(); // Clear form on open
-  document.getElementById('addSiteError').innerText = ''; // Clear previous errors
   var modal = new bootstrap.Modal(document.getElementById('addSiteModal'));
   modal.show();
 }
-
 function submitAddSiteForm() {
   const url = document.getElementById('addSiteUrl').value;
   const title = document.getElementById('addSiteTitle').value;
   const description = document.getElementById('addSiteDescription').value;
-  const addSiteError = document.getElementById('addSiteError');
-  addSiteError.innerText = ''; // Clear previous errors
-
-  if (!title || !url) {
-    addSiteError.innerText = 'Title and URL are required.';
-    return;
-  }
-  // Basic URL validation (though type="url" helps)
-  try {
-    new URL(url);
-  } catch (_) {
-    addSiteError.innerText = 'Please enter a valid URL (e.g., https://example.com).';
-    return;
-  }
-  
-  const submitButton = document.querySelector('#addSiteModal .btn-primary');
-  const originalButtonText = submitButton.innerHTML;
-  submitButton.disabled = true;
-  submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Adding...';
-
-
-  fetch('{% url "add_site" %}', {
+  fetch('{% url 'add_site' %}', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'X-CSRFToken': getCookie('csrftoken'), // Ensure getCookie is available (from main.js)
+      'X-CSRFToken': '{{ csrf_token }}',
     },
     body: JSON.stringify({url: url, title: title, description: description})
   })
-  .then(response => {
-    if (!response.ok) {
-      // Try to parse error if JSON, otherwise use status text
-      return response.json().then(errData => { throw errData; }).catch(() => {throw new Error(`HTTP error ${response.status}`)});
-    }
-    return response.json();
-  })
+  .then(response => response.json())
   .then(data => {
     if (data.status === 'success') {
-      bootstrap.Modal.getInstance(document.getElementById('addSiteModal')).hide();
-      showToast(data.message || 'Site added successfully!', 'success');
-      // Refresh dashboard table content
-      fetchDashboardTable();
+      location.reload();
     } else {
-      addSiteError.innerText = data.message || 'Failed to add site.';
+      document.getElementById('addSiteError').innerText = data.message;
     }
-  })
-  .catch(error => {
-    console.error("Add site error:", error);
-    addSiteError.innerText = error.message || 'An unexpected error occurred.';
-  })
-  .finally(() => {
-    submitButton.disabled = false;
-    submitButton.innerHTML = originalButtonText;
   });
 }
-
-function fetchDashboardTable() {
-  const refreshBtn = document.getElementById('refreshTable');
-  const originalRefreshBtnText = refreshBtn ? refreshBtn.innerHTML : '';
-  if (refreshBtn) {
-    refreshBtn.disabled = true;
-    refreshBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Refreshing...';
-  }
-
-  fetch('{% url "dashboard_table" %}')
-    .then(response => {
-      if (!response.ok) throw new Error(`HTTP error ${response.status}`);
-      return response.text();
-    })
-    .then(html => {
-      const tableBody = document.getElementById('dashboardTableBody');
-      if (tableBody) {
-        tableBody.innerHTML = html;
-      }
-      if (refreshBtn) showToast('Table refreshed!', 'success');
-    })
-    .catch(error => {
-        console.error("Dashboard refresh error:", error);
-        if (refreshBtn) showToast('Failed to refresh table: ' + error.message, 'danger');
-    })
-    .finally(() => {
-      if (refreshBtn) {
-        refreshBtn.disabled = false;
-        refreshBtn.innerHTML = originalRefreshBtnText;
-      }
-    });
+function rescanPSI(linkId) {
+  const btn = document.getElementById('rescan-btn-' + linkId);
+  const psiCell = document.getElementById('psi-score-' + linkId);
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Scanning...';
+  fetch(`/sites/${linkId}/fetch-psi/`, {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': '{{ csrf_token }}',
+    },
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.status === 'success') {
+      // Optionally, fetch the new PSI score and update the cell
+      location.reload(); // For now, reload to update all data
+    } else {
+      psiCell.innerHTML = '<span class="text-danger">Error: ' + data.message + '</span>';
+    }
+  })
+  .catch(() => {
+    psiCell.innerHTML = '<span class="text-danger">Scan failed</span>';
+  })
+  .finally(() => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Re-scan';
+  });
 }
-
 document.addEventListener('DOMContentLoaded', function() {
   const refreshBtn = document.getElementById('refreshTable');
   if (refreshBtn) {
-    refreshBtn.addEventListener('click', fetchDashboardTable);
-  }
-
-  // If you add an import button:
-  /*
-  const importBtn = document.getElementById('importLinksJsonBtn');
-  const importFile = document.getElementById('importLinksJsonFile');
-  if (importBtn && importFile) {
-    importBtn.addEventListener('click', () => importFile.click());
-    importFile.addEventListener('change', (event) => {
-      const file = event.target.files[0];
-      if (file) {
-        const formData = new FormData();
-        formData.append('file', file);
-        showLoading();
-        fetch('{% url "import_links_json" %}', {
-          method: 'POST',
-          headers: { 'X-CSRFToken': getCookie('csrftoken') },
-          body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-          if (data.status === 'success') {
-            showToast(`Import successful! Created: ${data.created}, Skipped: ${data.existing_skipped || 0}`, 'success');
-            fetchDashboardTable();
-          } else {
-            showToast(`Import failed: ${data.message}`, 'danger');
-          }
-        })
-        .catch(err => {
-          console.error("Import error:", err);
-          showToast('Import failed: ' + err.message, 'danger');
-        })
-        .finally(() => {
-            hideLoading();
-            importFile.value = ''; // Reset file input
-        });
-      }
+    refreshBtn.addEventListener('click', function() {
+      refreshBtn.disabled = true;
+      refreshBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Refreshing...';
+      // Reload the page to refresh the table data
+      location.reload();
     });
   }
-  */
 });
 </script>
-{% endblock %}
+{% endblock %} 

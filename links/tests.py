@@ -32,5 +32,3 @@ class LinkListViewTest(TestCase):
         self.client.force_login(self.user)
         response = self.client.get(reverse("dashboard"), follow=True)
         self.assertEqual(response.status_code, 200)
-
-# Add tests for dashboard_table endpoint, analytics_utils, and dashboard view.

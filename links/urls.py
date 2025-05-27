@@ -78,5 +78,4 @@ urlpatterns = [
         name="ssl_labs_history",
     ),
     path("settings/", views.settings_view, name="settings"),
-    path('dashboard/table/', views.dashboard_table, name='dashboard_table'),
 ]

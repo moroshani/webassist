@@ -17,9 +17,6 @@ def get_env_setting(setting_name):
 
 SECRET_KEY = get_env_setting("DJANGO_SECRET_KEY")
 
-# Encryption key for django_cryptography field encryption
-FIELD_ENCRYPTION_KEYS = [os.getenv('DJANGO_FIELD_ENCRYPTION_KEY')]
-
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DJANGO_DEBUG", "True") == "True"
 
