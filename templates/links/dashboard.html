@@ -53,30 +53,30 @@
             </td>
             <td>
               {% if site.ssl_expiry %}
-                <span class="badge bg-{{ site.ssl_status|yesno:'success,danger,secondary' }}">
-                  {% if site.psi_status is not None %}
-                    {% if site.psi_status >= 0.9 %}
-                      Good
-                    {% elif site.psi_status >= 0.5 %}
-                      Average
-                    {% else %}
-                      Poor
-                    {% endif %}
-                  {% else %}
-                    Unknown
-                  {% endif %}
+                <span class="badge bg-{% if site.ssl_status %}success{% else %}danger{% endif %}">
+                  {% if site.ssl_status %}Valid{% else %}Invalid{% endif %}
                 </span>
+                <br><small>Exp: {{ site.ssl_expiry|date:'Y-m-d' }}</small>
+                {% if site.ssl_warnings %}<br><span class="text-warning small">{{ site.ssl_warnings }}</span>{% endif %}
+                {% if site.ssl_errors %}<br><span class="text-danger small">{{ site.ssl_errors }}</span>{% endif %}
               {% else %}
                 <span class="badge bg-secondary">Unknown</span>
               {% endif %}
             </td>
             <td>
-              {% if site.link.uptime_last_status == '2' %}
-                <span class="badge bg-success">Up</span>
-              {% elif site.link.uptime_last_status == '9' %}
-                <span class="badge bg-danger">Down</span>
-              {% elif site.link.uptime_last_status == 'error' %}
-                <span class="badge bg-warning text-dark">Error</span>
+              {% if site.ssl_grade %}
+                {% if site.ssl_grade == 'A+' %}
+                  <span class="badge bg-success">{{ site.ssl_grade }}</span>
+                {% elif site.ssl_grade == 'A' %}
+                  <span class="badge bg-success">{{ site.ssl_grade }}</span>
+                {% elif site.ssl_grade == 'B' %}
+                  <span class="badge bg-warning text-dark">{{ site.ssl_grade }}</span>
+                {% elif site.ssl_grade == 'C' %}
+                  <span class="badge bg-warning text-dark">{{ site.ssl_grade }}</span>
+                {% else %}
+                  <span class="badge bg-danger">{{ site.ssl_grade }}</span>
+                {% endif %}
+                {% if site.ssl_labs_status %}<br><small>Status: {{ site.ssl_labs_status }}</small>{% endif %}
               {% else %}
                 <span class="badge bg-secondary">Unknown</span>
               {% endif %}
@@ -128,6 +128,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="{% static 'js/main.js' %}"></script>
 <script>
 function openAddSiteModal() {
   var modal = new bootstrap.Modal(document.getElementById('addSiteModal'));
@@ -188,8 +189,17 @@ document.addEventListener('DOMContentLoaded', function() {
     refreshBtn.addEventListener('click', function() {
       refreshBtn.disabled = true;
       refreshBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Refreshing...';
-      // Reload the page to refresh the table data
-      location.reload();
+      fetch('{% url 'dashboard_table' %}')
+        .then(response => response.text())
+        .then(html => {
+          document.querySelector('table.table tbody').innerHTML = html;
+          showToast('Table refreshed!', 'success');
+        })
+        .catch(() => showToast('Failed to refresh table', 'danger'))
+        .finally(() => {
+          refreshBtn.disabled = false;
+          refreshBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Refresh';
+        });
     });
   }
 });

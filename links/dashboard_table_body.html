@@ -1,0 +1,60 @@
+{% for site in sites_data %}
+<tr>
+  <td><strong>{{ site.link.title }}</strong><br><small>{{ site.link.url }}</small></td>
+  <td>
+    {% if site.psi_status is not None %}
+      <span class="badge bg-success">{{ site.psi_status|floatformat:2 }}</span>
+      <br><small>{{ site.psi_last_checked|date:'Y-m-d H:i' }}</small>
+    {% else %}
+      <span class="badge bg-secondary">N/A</span>
+    {% endif %}
+  </td>
+  <td>
+    {% if site.uptime_status is not None %}
+      <span class="badge bg-success">Up</span>
+      <br><small>{{ site.uptime_last_checked|date:'Y-m-d H:i' }}</small>
+    {% elif site.link.uptime_last_status == 'error' %}
+      <span class="badge bg-danger">Error</span>
+    {% else %}
+      <span class="badge bg-secondary">N/A</span>
+    {% endif %}
+  </td>
+  <td>
+    {% if site.ssl_expiry %}
+      <span class="badge bg-{% if site.ssl_status %}success{% else %}danger{% endif %}">
+        {% if site.ssl_status %}Valid{% else %}Invalid{% endif %}
+      </span>
+      <br><small>Exp: {{ site.ssl_expiry|date:'Y-m-d' }}</small>
+      {% if site.ssl_warnings %}<br><span class="text-warning small">{{ site.ssl_warnings }}</span>{% endif %}
+      {% if site.ssl_errors %}<br><span class="text-danger small">{{ site.ssl_errors }}</span>{% endif %}
+    {% else %}
+      <span class="badge bg-secondary">Unknown</span>
+    {% endif %}
+  </td>
+  <td>
+    {% if site.ssl_grade %}
+      {% if site.ssl_grade == 'A+' %}
+        <span class="badge bg-success">{{ site.ssl_grade }}</span>
+      {% elif site.ssl_grade == 'A' %}
+        <span class="badge bg-success">{{ site.ssl_grade }}</span>
+      {% elif site.ssl_grade == 'B' %}
+        <span class="badge bg-warning text-dark">{{ site.ssl_grade }}</span>
+      {% elif site.ssl_grade == 'C' %}
+        <span class="badge bg-warning text-dark">{{ site.ssl_grade }}</span>
+      {% else %}
+        <span class="badge bg-danger">{{ site.ssl_grade }}</span>
+      {% endif %}
+      {% if site.ssl_labs_status %}<br><small>Status: {{ site.ssl_labs_status }}</small>{% endif %}
+    {% else %}
+      <span class="badge bg-secondary">Unknown</span>
+    {% endif %}
+  </td>
+  <td>
+    <a href="{% url 'features_page' site.link.id %}" class="btn btn-outline-info btn-sm">Features</a>
+  </td>
+</tr>
+{% empty %}
+<tr>
+  <td colspan="7" class="text-center text-muted">No sites yet. Add your first site!</td>
+</tr>
+{% endfor %} 

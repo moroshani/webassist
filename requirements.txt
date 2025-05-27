@@ -11,7 +11,7 @@ mypy
 django-allauth
 requests
 PyJWT
-cryptography
+cryptography>=41.0.0
 django_cryptography
 psycopg2-binary
 pytest-cov

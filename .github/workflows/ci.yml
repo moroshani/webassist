@@ -38,4 +38,4 @@ jobs:
         run: rm -rf .mypy_cache
       - name: Type check
         run: |
-          mypy webassist --install-types --non-interactive -v 
+          mypy webassist --install-types --non-interactive 
