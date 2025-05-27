@@ -3,14 +3,15 @@ from typing import Optional
 from django.contrib.auth.models import User
 from django.db import models
 from django_cryptography.fields import encrypt
+from django.conf import settings
 
 
 class Link(models.Model):
     """A website link tracked by the user."""
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="links")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="links")
     title = models.CharField(max_length=255)
-    url = models.URLField(unique=True)
+    url = models.URLField()
     description = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -25,25 +26,29 @@ class Link(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        constraints = [models.UniqueConstraint(fields=["user", "url"], name="user_link_url_unique")]
 
 
 class Page(models.Model):
     """A page for which PSI reports are tracked."""
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="pages")
-    url = models.URLField(unique=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="pages")
+    url = models.URLField()
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self) -> str:
         """String representation of the page."""
         return self.url
 
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["user", "url"], name="user_page_url_unique")]
+
 
 class PSIReportGroup(models.Model):
     """A group of PSI reports (mobile/desktop) for a page at a specific time."""
 
     user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="psi_report_groups"
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="psi_report_groups"
     )
     page = models.ForeignKey(
         Page, on_delete=models.CASCADE, related_name="psi_report_groups"
@@ -58,7 +63,7 @@ class PSIReportGroup(models.Model):
 class PSIReport(models.Model):
     """A single PSI report (mobile or desktop) for a page."""
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="psi_reports")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="psi_reports")
     group = models.ForeignKey(
         "PSIReportGroup",
         on_delete=models.CASCADE,
@@ -155,7 +160,7 @@ class UserAPIKey(models.Model):
         ("uptimerobot", "UptimeRobot"),
         # Add more as needed
     ]
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="api_keys")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="api_keys")
     service = models.CharField(max_length=32, choices=SERVICE_CHOICES)
     key = encrypt(models.CharField(max_length=255))
     status = models.CharField(max_length=32, blank=True, null=True)
@@ -172,14 +177,14 @@ class UserAPIKey(models.Model):
 class SSLCheck(models.Model):
     """Result of a local SSL certificate check for a site."""
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="ssl_checks")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="ssl_checks")
     link = models.ForeignKey(Link, on_delete=models.CASCADE, related_name="ssl_checks")
     checked_at = models.DateTimeField(auto_now_add=True)
     # Certificate details
     subject = models.TextField()
     issuer = models.TextField()
     serial_number = models.CharField(max_length=128)
-    version = models.IntegerField(null=True)
+    version = models.CharField(max_length=32, null=True, blank=True)
     not_before = models.DateTimeField()
     not_after = models.DateTimeField()
     san = models.TextField(blank=True)  # comma-separated
@@ -207,12 +212,8 @@ class SSLCheck(models.Model):
 class SSLLabsScan(models.Model):
     """Result of an SSL Labs advanced scan for a site."""
 
-    user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="ssllabs_scans"
-    )
-    link = models.ForeignKey(
-        Link, on_delete=models.CASCADE, related_name="ssllabs_scans"
-    )
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="ssllabs_scans")
+    link = models.ForeignKey(Link, on_delete=models.CASCADE, related_name="ssllabs_scans")
     scanned_at = models.DateTimeField(auto_now_add=True)
     endpoint = models.CharField(max_length=255, blank=True)  # IP or hostname
     grade = models.CharField(max_length=4, blank=True)

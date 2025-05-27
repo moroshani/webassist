@@ -31,16 +31,6 @@ class LinkFilter(FilterSet):
         fields = ["title", "description"]
 
 
-def home(request):
-    return render(request, "links/home.html")
-
-
-@login_required
-def link_list(request):
-    # Removed link_list view and related code for the deleted sites page
-    pass
-
-
 @login_required
 @require_POST
 def fetch_psi_report(request, link_id):
@@ -77,6 +67,25 @@ def psi_reports_list(request, link_id):
     reports = (
         page.psi_reports.filter(user=request.user) if page else PSIReport.objects.none()
     )
+    # Server-side filtering
+    start_date = request.GET.get('startDate')
+    end_date = request.GET.get('endDate')
+    min_score = request.GET.get('minScore')
+    max_score = request.GET.get('maxScore')
+    search = request.GET.get('search')
+    if start_date:
+        reports = reports.filter(fetch_time__date__gte=start_date)
+    if end_date:
+        reports = reports.filter(fetch_time__date__lte=end_date)
+    if min_score:
+        reports = reports.filter(category_scores__performance__gte=float(min_score))
+    if max_score:
+        reports = reports.filter(category_scores__performance__lte=float(max_score))
+    if search:
+        reports = reports.filter(
+            models.Q(page__url__icontains=search) |
+            models.Q(page__user__username__icontains=search)
+        )
     mobile_reports = reports.filter(strategy="mobile")
     desktop_reports = reports.filter(strategy="desktop")
     paginator = Paginator(reports, 10)  # 10 reports per page
@@ -87,17 +96,14 @@ def psi_reports_list(request, link_id):
         page_obj = paginator.page(1)
     except EmptyPage:
         page_obj = paginator.page(paginator.num_pages)
-
     # Trend analytics
     trend_data = get_trend_data_for_queryset(reports, 'fetch_time', group_by_field='strategy', extra_fields=['category_scores__performance', 'category_scores__accessibility', 'category_scores__best_practices', 'category_scores__seo'])
-
     # Compare analytics
     compare_start1 = request.GET.get("compare_start1")
     compare_end1 = request.GET.get("compare_end1")
     compare_start2 = request.GET.get("compare_start2")
     compare_end2 = request.GET.get("compare_end2")
     compare_data = get_compare_data_for_queryset(reports, 'fetch_time', [(compare_start1, compare_end1), (compare_start2, compare_end2)], group_by_field='strategy', extra_fields=['category_scores__performance', 'category_scores__accessibility', 'category_scores__best_practices', 'category_scores__seo'])
-
     return render(
         request,
         "links/psi_reports_list.html",
@@ -113,6 +119,11 @@ def psi_reports_list(request, link_id):
             "compare_end1": compare_end1,
             "compare_start2": compare_start2,
             "compare_end2": compare_end2,
+            "start_date": start_date,
+            "end_date": end_date,
+            "min_score": min_score,
+            "max_score": max_score,
+            "search": search,
         },
     )
 
@@ -287,12 +298,7 @@ def dashboard(request):
     )
     sites_data = []
     for link in links:
-        # Uptime status (still needs to be fetched live)
-        try:
-            UptimeRobotService.get_monitor_status(link, request.user)
-        except Exception:
-            link.uptime_last_status = "error"
-            link.save(update_fields=["uptime_last_status"])
+        # Uptime status: use stored values only
         sites_data.append({
             "link": link,
             "psi_status": link.psi_status,
@@ -304,8 +310,8 @@ def dashboard(request):
             "ssl_errors": link.ssl_errors,
             "ssl_grade": link.ssl_grade,
             "ssl_labs_status": link.ssl_labs_status,
-            "uptime_status": None,
-            "uptime_last_checked": None,
+            "uptime_status": link.uptime_last_status,
+            "uptime_last_checked": link.uptime_last_checked,
             "sec_headers_status": None,
             "sec_headers_last_checked": None,
         })
@@ -595,19 +601,42 @@ def settings_view(request):
             for service in SERVICES:
                 field = f"key_{service['key']}"
                 value = form.cleaned_data.get(field, "").strip()
+                print(f"Processing service: {service['key']}, value: {value}")
                 if value:
-                    obj, created = UserAPIKey.objects.get_or_create(user=user, service=service["key"])
-                    obj.key = value
+                    obj, created = UserAPIKey.objects.get_or_create(user=user, service=service["key"], defaults={'key': value})
+                    if not created and obj.key != value:
+                        obj.key = value
                     obj.status = "set"
                     obj.save()
+                    print(f"Saved UserAPIKey: {obj.__dict__}")
                     form_debug.append(f"[DEBUG] Saved key for {service['key']} (created={created})")
                     messages.success(request, f"API key for {service['name']} saved.")
+                else:
+                    deleted_count, _ = UserAPIKey.objects.filter(user=user, service=service["key"]).delete()
+                    if deleted_count > 0:
+                        form_debug.append(f"[DEBUG] Removed key for {service['key']}")
+                        messages.info(request, f"API key for {service['name']} removed.")
             just_posted = True
             form_valid = True
-            return redirect("settings")
+            # For debugging, render the page instead of redirecting
+            keys = {k.service: k for k in UserAPIKey.objects.filter(user=user)}
+            for service in SERVICES:
+                k = keys.get(service["key"])
+                if k:
+                    k.status = "set" if k.key else "Not set"
+            context = {
+                "services": SERVICES,
+                "keys": keys,
+                "form": form,
+                "just_posted": just_posted,
+                "form_debug": form_debug + [f"Debug: Re-rendering after POST. Form valid: {form.is_valid()}"],
+                "form_valid": form.is_valid(),
+            }
+            return render(request, "links/settings.html", context)
         else:
             form_debug.append("[DEBUG] Form is NOT valid")
             form_debug.append(f"[DEBUG] Errors: {form.errors}")
+            print(f"Settings form errors: {form.errors.as_json()}")
             form_valid = False
     # For display/status
     keys = {k.service: k for k in UserAPIKey.objects.filter(user=user)}
@@ -657,13 +686,13 @@ def ssl_history(request, link_id):
     link = get_object_or_404(Link, id=link_id, user=request.user)
     checks = link.ssl_checks.order_by("-checked_at")
     # Trend analytics
-    trend_data = get_trend_data_for_queryset(checks, 'checked_at', group_by_field='strategy', extra_fields=['not_after'])
+    trend_data = get_trend_data_for_queryset(checks, 'checked_at', group_by_field=None, extra_fields=['not_after'])
     # Compare analytics
     compare_start1 = request.GET.get("compare_start1")
     compare_end1 = request.GET.get("compare_end1")
     compare_start2 = request.GET.get("compare_start2")
     compare_end2 = request.GET.get("compare_end2")
-    compare_data = get_compare_data_for_queryset(checks, 'checked_at', [(compare_start1, compare_end1), (compare_start2, compare_end2)], group_by_field='strategy', extra_fields=['not_after'])
+    compare_data = get_compare_data_for_queryset(checks, 'checked_at', [(compare_start1, compare_end1), (compare_start2, compare_end2)], group_by_field=None, extra_fields=['not_after'])
     return render(
         request,
         "links/ssl_history.html",
@@ -757,11 +786,7 @@ def dashboard_table(request):
     )
     sites_data = []
     for link in links:
-        try:
-            UptimeRobotService.get_monitor_status(link, request.user)
-        except Exception:
-            link.uptime_last_status = "error"
-            link.save(update_fields=["uptime_last_status"])
+        # Uptime status: use stored values only
         sites_data.append({
             "link": link,
             "psi_status": link.psi_status,
@@ -773,8 +798,8 @@ def dashboard_table(request):
             "ssl_errors": link.ssl_errors,
             "ssl_grade": link.ssl_grade,
             "ssl_labs_status": link.ssl_labs_status,
-            "uptime_status": None,
-            "uptime_last_checked": None,
+            "uptime_status": link.uptime_last_status,
+            "uptime_last_checked": link.uptime_last_checked,
             "sec_headers_status": None,
             "sec_headers_last_checked": None,
         })

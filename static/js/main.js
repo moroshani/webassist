@@ -78,18 +78,28 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// Add loading state to buttons
-document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('button[type="submit"]').forEach(button => {
-        button.addEventListener('click', function() {
-            if (this.form && this.form.checkValidity()) {
+// Add detailed logging for all submit buttons (especially settings form)
+document.querySelectorAll('button[type="submit"]').forEach(button => {
+    button.addEventListener('click', function(event) {
+        console.log("Submit button clicked. Form:", this.form);
+        if (this.form) {
+            console.log("Form validity check:", this.form.checkValidity());
+            if (this.form.checkValidity()) {
                 this.disabled = true;
                 this.innerHTML = `
                     <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                     Loading...
                 `;
+                console.log("Form is valid, attempting default submission.");
+                // Default submission will proceed
+            } else {
+                console.log("Form is NOT valid. Forcing reportValidity().");
+                this.form.reportValidity();
+                // event.preventDefault(); // Optionally prevent submission if you want to handle errors customly
             }
-        });
+        } else {
+            console.error("Button is not associated with a form.");
+        }
     });
 });
 

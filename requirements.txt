@@ -17,5 +17,4 @@ psycopg2-binary
 pytest-cov
 django-stubs
 types-requests
-dj-database-url
-django-fernet-fields 
+dj-database-url 

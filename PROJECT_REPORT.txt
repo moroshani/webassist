@@ -61,4 +61,16 @@ Every time a feature is added, changed, or removed, or a significant refactor is
 ---
 
 ## Changelog
-- 2025-05-26: Initial report and roadmap created by AI assistant. Living file—update after every significant change. 
+- 2025-05-26: Initial report and roadmap created by AI assistant. Living file—update after every significant change.
+- 2025-06-01: API key settings page now supports saving, updating, and removing keys with robust encryption (FIELD_ENCRYPTION_KEYS set).
+- 2025-06-01: Model integrity improved: unique constraints on (user, url), SSLCheck.version is CharField, ForeignKeys use AUTH_USER_MODEL.
+- 2025-06-01: Dashboard and AJAX refresh optimized: no per-link API calls, uses stored status.
+- 2025-06-01: PSI reports list: server-side filtering and sorting implemented.
+- 2025-06-01: All inline JS moved to static files (main.js, psi_reports.js).
+- 2025-06-01: Dependencies cleaned up; only production packages in requirements.txt.
+- 2025-06-01: All Gemini Pro roadmap items addressed as of this update.
+
+Next roadmap: (add new items as needed)
+- Expand test coverage for all integrations and analytics.
+- Add background task for periodic uptime refresh (Celery or Django-Q).
+- Continue UI/UX improvements and accessibility enhancements. 
