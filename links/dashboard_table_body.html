@@ -1,30 +1,47 @@
+{% load static %}
+{% load links_extras %} {# Ensure your custom filters like floatformat are available if needed, though not directly used here #}
+
 {% for site in sites_data %}
 <tr>
-  <td><strong>{{ site.link.title }}</strong><br><small>{{ site.link.url }}</small></td>
+  <td><strong>{{ site.link.title }}</strong><br><small><a href="{{ site.link.url }}" target="_blank" rel="noopener noreferrer">{{ site.link.url }}</a></small></td>
   <td>
     {% if site.psi_status is not None %}
-      <span class="badge bg-success">{{ site.psi_status|floatformat:2 }}</span>
-      <br><small>{{ site.psi_last_checked|date:'Y-m-d H:i' }}</small>
+      <span class="badge 
+        {% if site.psi_status >= 0.9 %}bg-success
+        {% elif site.psi_status >= 0.5 %}bg-warning text-dark
+        {% else %}bg-danger
+        {% endif %}">
+        {{ site.psi_status|mul:100|floatformat:0 }}
+      </span>
+      {% if site.psi_last_checked %}<br><small class="text-muted">{{ site.psi_last_checked|date:'Y-m-d H:i' }}</small>{% endif %}
     {% else %}
       <span class="badge bg-secondary">N/A</span>
     {% endif %}
   </td>
   <td>
-    {% if site.uptime_status is not None %}
+    {% if site.uptime_status == '2' %} {# UptimeRobot: 2 is UP #}
       <span class="badge bg-success">Up</span>
-      <br><small>{{ site.uptime_last_checked|date:'Y-m-d H:i' }}</small>
+    {% elif site.uptime_status == '9' %} {# UptimeRobot: 9 is DOWN #}
+      <span class="badge bg-danger">Down</span>
+    {% elif site.uptime_status == '0' %} {# UptimeRobot: 0 is PAUSED #}
+      <span class="badge bg-warning text-dark">Paused</span>
+    {% elif site.uptime_status == '1' %} {# UptimeRobot: 1 is SEEMS DOWN (not used often) #}
+      <span class="badge bg-warning text-dark">Seems Down</span>
+    {% elif site.uptime_status == '8' %} {# UptimeRobot: 8 is STARTED #}
+         <span class="badge bg-info">Started</span>
     {% elif site.link.uptime_last_status == 'error' %}
       <span class="badge bg-danger">Error</span>
     {% else %}
       <span class="badge bg-secondary">N/A</span>
     {% endif %}
+    {% if site.uptime_last_checked %}<br><small class="text-muted">{{ site.uptime_last_checked|date:'Y-m-d H:i' }}</small>{% endif %}
   </td>
   <td>
     {% if site.ssl_expiry %}
-      <span class="badge bg-{% if site.ssl_status %}success{% else %}danger{% endif %}">
-        {% if site.ssl_status %}Valid{% else %}Invalid{% endif %}
+      <span class="badge {% if site.ssl_status %}bg-success{% else %}bg-danger{% endif %}">
+        {% if site.ssl_status %}Valid{% else %}Invalid/Expired{% endif %}
       </span>
-      <br><small>Exp: {{ site.ssl_expiry|date:'Y-m-d' }}</small>
+      <br><small class="text-muted">Exp: {{ site.ssl_expiry|date:'Y-m-d' }}</small>
       {% if site.ssl_warnings %}<br><span class="text-warning small">{{ site.ssl_warnings }}</span>{% endif %}
       {% if site.ssl_errors %}<br><span class="text-danger small">{{ site.ssl_errors }}</span>{% endif %}
     {% else %}
@@ -33,28 +50,38 @@
   </td>
   <td>
     {% if site.ssl_grade %}
-      {% if site.ssl_grade == 'A+' %}
-        <span class="badge bg-success">{{ site.ssl_grade }}</span>
-      {% elif site.ssl_grade == 'A' %}
+      {% if site.ssl_grade == 'A+' or site.ssl_grade == 'A' %}
         <span class="badge bg-success">{{ site.ssl_grade }}</span>
       {% elif site.ssl_grade == 'B' %}
         <span class="badge bg-warning text-dark">{{ site.ssl_grade }}</span>
-      {% elif site.ssl_grade == 'C' %}
-        <span class="badge bg-warning text-dark">{{ site.ssl_grade }}</span>
-      {% else %}
+      {% elif site.ssl_grade == 'C' or site.ssl_grade == 'D' or site.ssl_grade == 'E' or site.ssl_grade == 'F' or site.ssl_grade == 'T' %}
         <span class="badge bg-danger">{{ site.ssl_grade }}</span>
+      {% else %}
+        <span class="badge bg-info">{{ site.ssl_grade }}</span> {# For other grades like 'M' (Mismatch) etc. #}
       {% endif %}
-      {% if site.ssl_labs_status %}<br><small>Status: {{ site.ssl_labs_status }}</small>{% endif %}
+      {% if site.ssl_labs_status and site.ssl_labs_status != "READY" %}
+        <br><small class="text-muted">Status: {{ site.ssl_labs_status }}</small>
+      {% elif not site.ssl_grade and site.ssl_labs_status %}
+         <small class="text-muted">Status: {{ site.ssl_labs_status }}</small>
+      {% endif %}
     {% else %}
-      <span class="badge bg-secondary">Unknown</span>
+      <span class="badge bg-secondary">N/A</span>
+       {% if site.ssl_labs_status and site.ssl_labs_status != "READY" %}
+        <br><small class="text-muted">Status: {{ site.ssl_labs_status }}</small>
+      {% endif %}
     {% endif %}
   </td>
   <td>
-    <a href="{% url 'features_page' site.link.id %}" class="btn btn-outline-info btn-sm">Features</a>
+    <a href="{% url 'features_page' site.link.id %}" class="btn btn-outline-primary btn-sm">
+        <i class="bi bi-tools"></i> Features
+    </a>
+    <a href="{% url 'site_detail' site.link.id %}" class="btn btn-outline-secondary btn-sm mt-1">
+        <i class="bi bi-info-circle"></i> Details
+    </a>
   </td>
 </tr>
 {% empty %}
 <tr>
-  <td colspan="7" class="text-center text-muted">No sites yet. Add your first site!</td>
+  <td colspan="6" class="text-center text-muted py-4">No sites added yet. Click "Add Site" to get started!</td>
 </tr>
-{% endfor %} 
+{% endfor %}
