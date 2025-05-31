@@ -845,16 +845,20 @@ def settings_view(request):
             form_valid = False
     # For display/status
     keys = {k.service: k for k in UserAPIKey.objects.filter(user=user)}
+    display_services = []
     for service in SERVICES:
-        k = keys.get(service["key"])
-        if k:
-            k.status = "set" if k.key else "Not set"
+        key_obj = keys.get(service["key"])
+        status = "Not set"
+        current_key_value = ""
+        if key_obj and key_obj.key:
+            status = "set"
+            current_key_value = key_obj.key
+        display_services.append({**service, "status": status, "current_key_value": current_key_value})
     return render(
         request,
         "links/settings.html",
         {
-            "services": SERVICES,
-            "keys": keys,
+            "services": display_services,
             "form": form,
             "just_posted": just_posted,
             "form_debug": form_debug,

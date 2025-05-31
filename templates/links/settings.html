@@ -38,26 +38,23 @@
               {% endif %}
             {% endwith %}
           {% endwith %}
-          {% with key_obj=keys|getitem:service.key %}
-            {% if key_obj.key == 'DUMMY_KEY_CHANGE_ME' %}
-              <span class="badge bg-warning text-dark mt-2">You must set your real API key!</span>
-            {% endif %}
-          {% endwith %}
+          {% if service.current_key_value == 'DUMMY_KEY_CHANGE_ME' %}
+            <span class="badge bg-warning text-dark mt-2">You must set your real API key!</span>
+          {% endif %}
         </div>
         <div class="mb-2">
-          {% with key_obj=keys|getitem:service.key %}
-          {# DEBUG: status for {{ service.key }} = {{ key_obj.status }} #}
-          {% if key_obj.status == 'set' %}
+          {# Show status and a placeholder if set #}
+          {% if service.status == 'set' %}
             <span class="badge bg-success">Status: Set</span>
-          {% elif key_obj.status == 'Not set' %}
+            <span class="ms-2">********</span>
+          {% elif service.status == 'Not set' %}
             <span class="badge bg-secondary">Status: Not set</span>
-          {% elif key_obj.status == 'error' %}
+          {% elif service.status == 'error' %}
             <span class="badge bg-danger">Status: Error</span>
           {% else %}
             <span class="badge bg-info"><span class="spinner-border spinner-border-sm"></span> Loading...</span>
           {% endif %}
-          {% if key_obj.usage %}<span class="badge bg-info ms-2">Usage: {{ key_obj.usage }}</span>{% endif %}
-          {% endwith %}
+          {% if service.usage %}<span class="badge bg-info ms-2">Usage: {{ service.usage }}</span>{% endif %}
         </div>
         <div class="mb-2">
           <strong>Instructions:</strong> {{ service.instructions }}<br>
