@@ -6,31 +6,35 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('links', '0004_alter_userapikey_id_ssllabsscan_sslcheck'),
+        ("links", "0004_alter_userapikey_id_ssllabsscan_sslcheck"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='link',
-            name='url',
+            model_name="link",
+            name="url",
             field=models.URLField(),
         ),
         migrations.AlterField(
-            model_name='page',
-            name='url',
+            model_name="page",
+            name="url",
             field=models.URLField(),
         ),
         migrations.AlterField(
-            model_name='sslcheck',
-            name='version',
+            model_name="sslcheck",
+            name="version",
             field=models.CharField(blank=True, max_length=32, null=True),
         ),
         migrations.AddConstraint(
-            model_name='link',
-            constraint=models.UniqueConstraint(fields=('user', 'url'), name='user_link_url_unique'),
+            model_name="link",
+            constraint=models.UniqueConstraint(
+                fields=("user", "url"), name="user_link_url_unique"
+            ),
         ),
         migrations.AddConstraint(
-            model_name='page',
-            constraint=models.UniqueConstraint(fields=('user', 'url'), name='user_page_url_unique'),
+            model_name="page",
+            constraint=models.UniqueConstraint(
+                fields=("user", "url"), name="user_page_url_unique"
+            ),
         ),
     ]
