@@ -80,15 +80,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Add loading state to buttons
 document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('button[type="submit"]').forEach(button => {
-        button.addEventListener('click', function() {
-            if (this.form && this.form.checkValidity()) {
-                this.disabled = true;
-                this.innerHTML = `
+    document.querySelectorAll('form').forEach(form => {
+        form.addEventListener('submit', function() {
+            const submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn && form.checkValidity()) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = `
                     <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                     Loading...
                 `;
             }
         });
     });
-}); 
+});
