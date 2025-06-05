@@ -10,6 +10,7 @@ from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.db.models import Avg, Max, Min
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django_filters import CharFilter, FilterSet
@@ -30,12 +31,6 @@ class LinkFilter(FilterSet):
 
 def home(request):
     return render(request, "links/home.html")
-
-
-@login_required
-def link_list(request):
-    # Removed link_list view and related code for the deleted sites page
-    pass
 
 
 @login_required
@@ -538,32 +533,36 @@ def features_page(request, link_id):
             "key": "psi",
             "description": "Analyze site performance using Google PSI.",
             "has_history": True,
-            "run_url": f"/sites/{link.id}/fetch-psi/",
-            "history_url": f"/sites/{link.id}/reports/",
+            "run_url": reverse("fetch_psi_report", args=[link.id]),
+            "history_url": reverse("psi_reports_list", args=[link.id]),
+            "method": "post",
         },
         {
             "name": "Uptime Monitoring",
             "key": "uptime",
             "description": "Check site uptime status using UptimeRobot.",
             "has_history": False,
-            "run_url": f"/sites/{link.id}/features/uptime/",
+            "run_url": reverse("uptime_feature_run", args=[link.id]) + "?run=1",
             "history_url": None,
+            "method": "get",
         },
         {
             "name": "SSL Certificate",
             "key": "ssl",
             "description": "Check SSL certificate validity, expiry, and configuration.",
             "has_history": True,
-            "run_url": f"/sites/{link.id}/features/ssl/",
-            "history_url": f"/sites/{link.id}/features/ssl/history/",
+            "run_url": reverse("ssl_feature_run", args=[link.id]) + "?run=1",
+            "history_url": reverse("ssl_history", args=[link.id]),
+            "method": "get",
         },
         {
             "name": "SSL Labs Advanced Scan",
             "key": "ssllabs",
             "description": "Run a deep SSL security scan and get a grade (A+ to F) and vulnerabilities.",
             "has_history": True,
-            "run_url": f"/sites/{link.id}/features/ssl-labs/",
-            "history_url": f"/sites/{link.id}/features/ssl-labs/history/",
+            "run_url": reverse("ssl_labs_feature_run", args=[link.id]) + "?run=1",
+            "history_url": reverse("ssl_labs_history", args=[link.id]),
+            "method": "get",
         },
         # Add more features here as you implement them
     ]
@@ -883,7 +882,7 @@ def ssl_labs_feature_run(request, link_id):
     link = get_object_or_404(Link, id=link_id, user=request.user)
     error = None
     scan = None
-    if request.method == "POST":
+    if request.method == "POST" or request.GET.get("run") == "1":
         try:
             scan = SSLLabsService.run_scan(link, request.user)
         except Exception as e:
@@ -1070,7 +1069,7 @@ def ssl_feature_run(request, link_id):
     link = get_object_or_404(Link, id=link_id, user=request.user)
     error = None
     ssl_check = None
-    if request.method == "POST":
+    if request.method == "POST" or request.GET.get("run") == "1":
         try:
             ssl_check = SSLService.check_certificate(link, request.user)
         except Exception as e:
