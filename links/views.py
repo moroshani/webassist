@@ -1,5 +1,4 @@
 import csv
-import io
 import json
 from datetime import datetime, timedelta
 
@@ -7,19 +6,17 @@ from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import PasswordChangeForm
-from django.contrib.auth.models import User
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.db.models import Avg, Max, Min
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.template.loader import render_to_string
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.http import require_POST
 from django_filters import CharFilter, FilterSet
 
+from .forms import APIKeyForm
 from .models import Link, Page, PSIReport, PSIReportGroup, UserAPIKey
 from .services import PSIService, SSLLabsService, SSLService, UptimeRobotService
-from .forms import APIKeyForm
 
 
 class LinkFilter(FilterSet):
@@ -645,8 +642,6 @@ def uptime_history(request, link_id):
         trend_end = request.GET.get("trend_end")
         trend_data = None
         if trend_start and trend_end:
-            trend_start_dt = datetime.strptime(trend_start, "%Y-%m-%d")
-            trend_end_dt = datetime.strptime(trend_end, "%Y-%m-%d") + timedelta(days=1)
             trend_logs = [
                 log
                 for log in monitor.get("logs", [])
@@ -704,8 +699,6 @@ def uptime_history(request, link_id):
         if compare_start1 and compare_end1 and compare_start2 and compare_end2:
 
             def get_period_stats(start, end):
-                start_dt = datetime.strptime(start, "%Y-%m-%d")
-                end_dt = datetime.strptime(end, "%Y-%m-%d") + timedelta(days=1)
                 period_logs = [
                     log
                     for log in monitor.get("logs", [])
@@ -813,8 +806,20 @@ def export_uptime_logs_json(request, link_id):
 @login_required
 def settings_view(request):
     SERVICES = [
-        {"key": "psi", "name": "Google PageSpeed Insights", "help_url": "https://developers.google.com/speed/docs/insights/v5/get-started", "instructions": "Create a project in Google Cloud, enable the PageSpeed Insights API, and generate an API key.", "limitations": "Free tier: 25,000 requests/day. Quotas may change."},
-        {"key": "uptimerobot", "name": "UptimeRobot", "help_url": "https://uptimerobot.com/dashboard#mySettings", "instructions": "Log in to UptimeRobot, go to My Settings, and copy your Main API Key.", "limitations": "Free tier: 50 monitors, 5-minute checks. Quotas may change."},
+        {
+            "key": "psi",
+            "name": "Google PageSpeed Insights",
+            "help_url": "https://developers.google.com/speed/docs/insights/v5/get-started",
+            "instructions": "Create a project in Google Cloud, enable the PageSpeed Insights API, and generate an API key.",
+            "limitations": "Free tier: 25,000 requests/day. Quotas may change.",
+        },
+        {
+            "key": "uptimerobot",
+            "name": "UptimeRobot",
+            "help_url": "https://uptimerobot.com/dashboard#mySettings",
+            "instructions": "Log in to UptimeRobot, go to My Settings, and copy your Main API Key.",
+            "limitations": "Free tier: 50 monitors, 5-minute checks. Quotas may change.",
+        },
     ]
     user = request.user
     form_debug = []
@@ -830,11 +835,15 @@ def settings_view(request):
                 field = f"key_{service['key']}"
                 value = form.cleaned_data.get(field, "").strip()
                 if value:
-                    obj, created = UserAPIKey.objects.get_or_create(user=user, service=service["key"])
+                    obj, created = UserAPIKey.objects.get_or_create(
+                        user=user, service=service["key"]
+                    )
                     obj.key = value
                     obj.status = "set"
                     obj.save()
-                    form_debug.append(f"[DEBUG] Saved key for {service['key']} (created={created})")
+                    form_debug.append(
+                        f"[DEBUG] Saved key for {service['key']} (created={created})"
+                    )
                     messages.success(request, f"API key for {service['name']} saved.")
             just_posted = True
             form_valid = True
@@ -853,7 +862,9 @@ def settings_view(request):
         if key_obj and key_obj.key:
             status = "set"
             current_key_value = key_obj.key
-        display_services.append({**service, "status": status, "current_key_value": current_key_value})
+        display_services.append(
+            {**service, "status": status, "current_key_value": current_key_value}
+        )
     return render(
         request,
         "links/settings.html",
