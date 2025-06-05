@@ -22,7 +22,14 @@
             <td><strong>{{ feature.name }}</strong></td>
             <td>{{ feature.description }}</td>
             <td>
-              <a href="{{ feature.run_url }}" class="btn btn-primary" target="_blank">Run Now</a>
+              {% if feature.method == 'post' %}
+                <form method="post" action="{{ feature.run_url }}" target="_blank" class="d-inline">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-primary">Run Now</button>
+                </form>
+              {% else %}
+                <a href="{{ feature.run_url }}" class="btn btn-primary" target="_blank">Run Now</a>
+              {% endif %}
               {% if feature.has_history and feature.history_url %}
                 <a href="{{ feature.history_url }}" class="btn btn-outline-secondary ms-2" target="_blank">History</a>
               {% endif %}
